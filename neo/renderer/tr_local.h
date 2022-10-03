@@ -693,6 +693,9 @@ public:
 	// external functions
 	virtual void			Init( void );
 	virtual void			Shutdown( void );
+	virtual void 			InitRenderingAPI( void );
+	virtual bool			IsRenderingAPIRunning( void ) const;
+	virtual void			ShutdownRenderingAPI( void );
 	virtual void			InitOpenGL( void );
 	virtual void			ShutdownOpenGL( void );
 	virtual bool			IsOpenGLRunning( void ) const;
@@ -845,6 +848,8 @@ extern idCVar r_brightness;				// changes gamma tables
 extern idCVar r_gammaInShader;			// set gamma+brightness in shader instead of modifying system gamma tables
 
 extern idCVar r_renderer;				// arb2, etc
+
+extern idCVar r_renderApi;				// vulkan or opengl
 
 extern idCVar r_checkBounds;			// compare all surface bounds with precalculated ones
 

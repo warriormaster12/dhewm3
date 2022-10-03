@@ -164,6 +164,12 @@ public:
 	// only called before quitting
 	virtual void			Shutdown( void ) = 0;
 
+	virtual void 			InitRenderingAPI( void ) = 0;
+
+	virtual bool			IsRenderingAPIRunning( void ) const = 0;
+
+	virtual void			ShutdownRenderingAPI( void ) = 0;
+
 	virtual void			InitOpenGL( void ) = 0;
 
 	virtual void			ShutdownOpenGL( void ) = 0;

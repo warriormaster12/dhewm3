@@ -28,6 +28,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include <SDL.h>
 
+#include "framework/CVarSystem.h"
 #include "sys/platform.h"
 #include "idlib/containers/HashTable.h"
 #include "idlib/LangDict.h"
@@ -640,7 +641,7 @@ void idCommonLocal::Error( const char *fmt, ... ) {
 	}
 
 	// if we don't have GL running, make it a fatal error
-	if ( !renderSystem->IsOpenGLRunning() ) {
+	if ( !renderSystem->IsRenderingAPIRunning() ) {
 		code = ERP_FATAL;
 	}
 
@@ -2367,8 +2368,8 @@ void idCommonLocal::InitRenderSystem( void ) {
 		return;
 	}
 
-	renderSystem->InitVulkan();
-	renderSystem->InitOpenGL();
+	renderSystem->InitRenderingAPI();
+	
 	PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04343" ) );
 }
 

@@ -28,6 +28,8 @@ If you have questions concerning this license or the applicable additional terms
 
 #include <SDL.h>
 
+#include "SDL_video.h"
+#include "framework/Common.h"
 #include "sys/platform.h"
 #include "framework/Licensee.h"
 
@@ -146,11 +148,17 @@ GLimp_Init
 ===================
 */
 bool GLimp_Init(glimpParms_t parms) {
-	common->Printf("Initializing OpenGL subsystem\n");
 
 	assert(SDL_WasInit(SDL_INIT_VIDEO));
-
-	Uint32 flags = SDL_WINDOW_OPENGL;
+	Uint32 flags = 0;
+	if ( r_renderApi.GetBool() ) {
+		flags = SDL_WINDOW_VULKAN;
+		common->Printf("Initializing Vulkan subsystem\n");
+	}
+	else {
+		flags = SDL_WINDOW_OPENGL;
+		common->Printf("Initializing OpenGl subsystem\n");
+	}	
 
 	if (parms.fullScreen == 1)
 	{

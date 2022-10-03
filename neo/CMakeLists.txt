@@ -481,6 +481,11 @@ set(src_renderer
 	renderer/tr_trace.cpp
 	renderer/tr_trisurf.cpp
 	renderer/tr_turboshadow.cpp
+
+	renderer/Vulkan/third-party/vk-bootstrap/VkBootstrap.cpp
+	renderer/Vulkan/third-party/vma/vk_mem_alloc.cpp
+	renderer/Vulkan/third-party/volk/volk.c
+	renderer/Vulkan/VkInit.cpp
 )
 
 # I'm a bit sloppy with headers and just glob them in..

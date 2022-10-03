@@ -25,6 +25,7 @@ If you have questions concerning this license or the applicable additional terms
 
 ===========================================================================
 */
+#include "framework/CVarSystem.h"
 #include "sys/platform.h"
 #include "idlib/LangDict.h"
 #include "framework/Licensee.h"
@@ -93,6 +94,8 @@ idCVar r_brightness( "r_brightness", "1", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_FL
 idCVar r_gammaInShader( "r_gammaInShader", "1", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_BOOL, "Set gamma and brightness in shaders instead using hardware gamma" );
 
 idCVar r_renderer( "r_renderer", "best", CVAR_RENDERER | CVAR_ARCHIVE, "hardware specific renderer path to use", r_rendererArgs, idCmdSystem::ArgCompletion_String<r_rendererArgs> );
+
+idCVar r_renderApi("r_renderApi","0", CVAR_RENDERER | CVAR_ARCHIVE | CVAR_BOOL, "selects active render api. OpenGl or Vulkan");
 
 idCVar r_jitter( "r_jitter", "0", CVAR_RENDERER | CVAR_BOOL, "randomly subpixel jitter the projection matrix" );
 
@@ -2206,7 +2209,7 @@ void idRenderSystemLocal::Shutdown( void ) {
 
 	Clear();
 
-	ShutdownOpenGL();
+	ShutdownRenderingAPI();
 }
 
 /*
@@ -2294,6 +2297,33 @@ bool idRenderSystemLocal::IsOpenGLRunning( void ) const {
 
 bool idRenderSystemLocal::IsVulkanRunning( void ) const {
 	return false;
+}
+
+void idRenderSystemLocal::InitRenderingAPI() {
+	if ( r_renderApi.GetBool() ) {
+		InitVulkan();
+	}
+	else {
+		InitOpenGL();
+	} 
+}
+
+bool idRenderSystemLocal::IsRenderingAPIRunning() const {
+	if ( r_renderApi.GetBool() ) {
+		return IsVulkanRunning();
+	}
+	else {
+		return IsOpenGLRunning();
+	} 
+}
+
+void idRenderSystemLocal::ShutdownRenderingAPI() {
+	if ( r_renderApi.GetBool() ) {
+		ShutdownVulkan();
+	}
+	else {
+		ShutdownOpenGL();
+	}
 }
 
 /*

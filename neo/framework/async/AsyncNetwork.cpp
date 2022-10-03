@@ -307,14 +307,14 @@ void idAsyncNetwork::SpawnServer_f( const idCmdArgs &args ) {
 	switch ( cvarSystem->GetCVarInteger( "net_serverDedicated" ) ) {
 		case 0:
 		case 2:
-			if ( !renderSystem->IsOpenGLRunning() ) {
-				common->Warning( "OpenGL is not running, net_serverDedicated == %d", cvarSystem->GetCVarInteger( "net_serverDedicated" ) );
+			if ( !renderSystem->IsRenderingAPIRunning() ) {
+				common->Warning( "OpenGL/Vulkan is not running, net_serverDedicated == %d", cvarSystem->GetCVarInteger( "net_serverDedicated" ) );
 			}
 			break;
 		case 1:
-			if ( renderSystem->IsOpenGLRunning() ) {
+			if ( renderSystem->IsRenderingAPIRunning() ) {
 				Sys_ShowConsole( 1, false );
-				renderSystem->ShutdownOpenGL();
+				renderSystem->ShutdownRenderingAPI();
 			}
 			soundSystem->SetMute( true );
 			soundSystem->ShutdownHW();
