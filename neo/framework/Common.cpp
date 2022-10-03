@@ -2367,6 +2367,7 @@ void idCommonLocal::InitRenderSystem( void ) {
 		return;
 	}
 
+	renderSystem->InitVulkan();
 	renderSystem->InitOpenGL();
 	PrintLoadingMessage( common->GetLanguageDict()->GetString( "#str_04343" ) );
 }
