@@ -25,7 +25,6 @@ If you have questions concerning this license or the applicable additional terms
 
 ===========================================================================
 */
-
 #include "sys/platform.h"
 #include "idlib/LangDict.h"
 #include "framework/Licensee.h"
@@ -636,6 +635,11 @@ all renderSystem functions will still operate properly, notably the material
 and model information functions.
 ==================
 */
+
+void R_InitVulkan( void ) {
+	vkdevice->Init();
+}
+
 void R_InitOpenGL( void ) {
 	GLint			temp;
 	glimpParms_t	parms;
@@ -2249,6 +2253,10 @@ void idRenderSystemLocal::InitOpenGL( void ) {
 	}
 }
 
+void idRenderSystemLocal::InitVulkan( void ) {
+	R_InitVulkan();
+}
+
 /*
 ========================
 idRenderSystemLocal::ShutdownOpenGL
@@ -2268,6 +2276,10 @@ void idRenderSystemLocal::ShutdownOpenGL( void ) {
 	glConfig.isInitialized = false;
 }
 
+void idRenderSystemLocal::ShutdownVulkan( void ) {
+	
+}
+
 /*
 ========================
 idRenderSystemLocal::IsOpenGLRunning
@@ -2278,6 +2290,10 @@ bool idRenderSystemLocal::IsOpenGLRunning( void ) const {
 		return false;
 	}
 	return true;
+}
+
+bool idRenderSystemLocal::IsVulkanRunning( void ) const {
+	return false;
 }
 
 /*

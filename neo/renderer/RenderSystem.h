@@ -170,6 +170,12 @@ public:
 
 	virtual bool			IsOpenGLRunning( void ) const = 0;
 
+	virtual void			InitVulkan( void ) = 0;
+
+	virtual bool			IsVulkanRunning( void ) const = 0;
+
+	virtual void			ShutdownVulkan( void ) = 0;
+
 	virtual bool			IsFullScreen( void ) const = 0;
 	virtual int				GetScreenWidth( void ) const = 0;
 	virtual int				GetScreenHeight( void ) const = 0;

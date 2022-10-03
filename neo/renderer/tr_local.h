@@ -39,6 +39,8 @@ class idScreenRect; // yay for include recursion
 #include "renderer/RenderSystem.h"
 #include "renderer/RenderWorld.h"
 
+#include "renderer/Vulkan/VkInit.h"
+
 class idRenderWorldLocal;
 
 // everything that is needed by the backend needs
@@ -694,6 +696,9 @@ public:
 	virtual void			InitOpenGL( void );
 	virtual void			ShutdownOpenGL( void );
 	virtual bool			IsOpenGLRunning( void ) const;
+	virtual void			InitVulkan( void );
+	virtual bool			IsVulkanRunning( void ) const;
+	virtual void			ShutdownVulkan( void );
 	virtual bool			IsFullScreen( void ) const;
 	virtual int				GetScreenWidth( void ) const;
 	virtual int				GetScreenHeight( void ) const;
@@ -1041,6 +1046,7 @@ const int GLS_DEFAULT							= GLS_DEPTHFUNC_ALWAYS;
 
 void R_Init( void );
 void R_InitOpenGL( void );
+void R_InitVulkan( void );
 
 void R_DoneFreeType( void );
 
