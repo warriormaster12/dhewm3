@@ -408,10 +408,12 @@ try_again:
 			}
 		}
 
-		context = SDL_GL_CreateContext(window);
+		if ( !r_renderApi.GetBool()) {
+			context = SDL_GL_CreateContext(window);
 
-		if (SDL_GL_SetSwapInterval(r_swapInterval.GetInteger()) < 0)
-			common->Warning("SDL_GL_SWAP_CONTROL not supported");
+			if (SDL_GL_SetSwapInterval(r_swapInterval.GetInteger()) < 0)
+				common->Warning("SDL_GL_SWAP_CONTROL not supported");
+		}
 
 		SDL_GetWindowSize(window, &glConfig.vidWidth, &glConfig.vidHeight);
 
@@ -615,6 +617,10 @@ void GLimp_Shutdown() {
 		window = NULL;
 	}
 #endif
+}
+
+void* GLimp_GetWindowPointer( void ) {
+	return window;
 }
 
 /*

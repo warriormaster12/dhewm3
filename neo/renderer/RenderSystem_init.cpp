@@ -640,6 +640,49 @@ and model information functions.
 */
 
 void R_InitVulkan( void ) {
+
+	common->Printf( "----- Initializing Vulkan -----\n" );
+
+	glimpParms_t	parms;
+	int				i;
+
+	// in case we had an error while doing a tiled rendering
+	tr.viewportOffset[0] = 0;
+	tr.viewportOffset[1] = 0;
+
+	initSortedVidModes();
+
+	//
+	// initialize OS specific portions of the renderSystem
+	//
+	for ( i = 0 ; i < 2 ; i++ ) {
+		// set the parameters we are trying
+		R_GetModeInfo( &glConfig.vidWidth, &glConfig.vidHeight, r_mode.GetInteger() );
+
+		parms.width = glConfig.vidWidth;
+		parms.height = glConfig.vidHeight;
+		parms.fullScreen = r_fullscreen.GetBool();
+		parms.displayHz = r_displayRefresh.GetInteger();
+		parms.multiSamples = r_multiSamples.GetInteger();
+		parms.stereo = false;
+
+		if ( GLimp_Init( parms ) ) {
+			// it worked
+			break;
+		}
+
+		if ( i == 1 ) {
+			common->FatalError( "Unable to initialize Vulkan" );
+		}
+
+		// if we failed, set everything back to "safe mode"
+		// and try again
+		r_mode.SetInteger( 3 );
+		r_fullscreen.SetInteger( 0 );
+		r_displayRefresh.SetInteger( 0 );
+		r_multiSamples.SetInteger( 0 );
+	}
+
 	vkdevice->Init();
 }
 

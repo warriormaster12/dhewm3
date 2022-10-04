@@ -1093,6 +1093,8 @@ void		GLimp_Shutdown( void );
 // and resets the gamma ramps.
 
 void		GLimp_SwapBuffers( void );
+
+void*		GLimp_GetWindowPointer( void );
 // Calls the system specific swapbuffers routine, and may also perform
 // other system specific cvar checks that happen every frame.
 // This will not be called if 'r_drawBuffer GL_FRONT'
