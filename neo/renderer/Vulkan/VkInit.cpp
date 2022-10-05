@@ -19,7 +19,12 @@ public:
     virtual void       CreateSwapchain( uint32_t width, uint32_t height );
     virtual void       Shutdown( void );
     virtual VmaAllocator& GetGlobalMemoryAllocator( void );
+
+    virtual PerFrameData& GetCurrentFrame( int frameNumber ) { return perFrameData[frameNumber % frameOverlap];}
+    virtual int GetFrameOverlap( void ) const {return frameOverlap;}
 private:
+    void CreateCommandBuffer( void );
+
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
     VkSurfaceKHR surface;
@@ -40,6 +45,9 @@ private:
     VkFormat swapchainImageFormat;
 
     idVkTools::AllocatedImage depthImage;
+
+    static const int frameOverlap = 2;
+    PerFrameData perFrameData[frameOverlap];
 };
 
 idVulkanDeviceLocal vkdevice_local;
@@ -113,6 +121,24 @@ VkImageViewCreateInfo ImageViewCreateInfo(VkFormat format, VkImage image, VkImag
     info.subresourceRange.aspectMask = aspectFlags;
 
     return info;
+}
+
+void idVulkanDeviceLocal::CreateCommandBuffer( void ) {
+    VkCommandPoolCreateInfo command_pool_info = idVkTools::CommandPoolCreateInfo(graphicsQueueFamily, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+    for(auto& frame : perFrameData){
+        ID_VK_CHECK_RESULT(vkCreateCommandPool(device, &command_pool_info, nullptr, &frame.commandPool));
+
+        VkCommandBufferAllocateInfo cmdAllocInfo = idVkTools::CommandBufferAllocateInfo(frame.commandPool);
+
+        ID_VK_CHECK_RESULT(vkAllocateCommandBuffers(device, &cmdAllocInfo, &frame.commandBuffer));
+    }
+
+    //TODO: upload commands
+	// VkCommandPoolCreateInfo upload_command_pool_info = vkdefaults::CommandPoolCreateInfo(DeviceManager::GetVkDevice().graphics_queue_family);
+	// //create pool for upload context
+	// VK_CHECK_RESULT(vkCreateCommandPool(DeviceManager::GetVkDevice().device, &upload_command_pool_info, nullptr, &upload_context.command_pool));
+
+    common->Printf("Vulkan Command Buffers created\n");
 }
 
 void idVulkanDeviceLocal::Init( void ){
@@ -224,6 +250,9 @@ void idVulkanDeviceLocal::Init( void ){
     vkGetPhysicalDeviceProperties(physicalDevice, &gpuProperties);
     common->Printf("GPU Vendor:%s Vulkan Version: %d\n", physicalDeviceSelector.properties.deviceName,physicalDeviceSelector.properties.apiVersion);
 
+    //creating and allocating at the application startup time should be enough
+    CreateCommandBuffer();
+
 }
 
 void idVulkanDeviceLocal::CreateSwapchain( uint32_t width, uint32_t height ) {
@@ -272,6 +301,11 @@ void idVulkanDeviceLocal::CreateSwapchain( uint32_t width, uint32_t height ) {
 
 
 void idVulkanDeviceLocal::Shutdown( void ) {
+    
+    for ( auto frame : perFrameData ) {
+        frame.CleanUp(device);
+    }
+    
 
     depthImage.DestroyImage( device, allocator );
     for (int i = 0; i < swapchainImageViews.size(); i++)
