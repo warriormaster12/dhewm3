@@ -26,6 +26,7 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 #include "framework/CVarSystem.h"
+#include "renderer/Vulkan/VkInit.h"
 #include "sys/platform.h"
 #include "idlib/LangDict.h"
 #include "framework/Licensee.h"
@@ -684,6 +685,7 @@ void R_InitVulkan( void ) {
 	}
 
 	vkdevice->Init();
+	vkdevice->CreateSwapchain(parms.width, parms.height);
 }
 
 void R_InitOpenGL( void ) {
@@ -2323,7 +2325,7 @@ void idRenderSystemLocal::ShutdownOpenGL( void ) {
 }
 
 void idRenderSystemLocal::ShutdownVulkan( void ) {
-	
+	vkdevice->Shutdown();
 }
 
 /*
