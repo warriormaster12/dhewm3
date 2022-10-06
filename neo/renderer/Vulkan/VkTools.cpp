@@ -38,6 +38,36 @@ const char * VK_ErrorToString( VkResult result ) {
 }
 
 namespace idVkTools {
+
+	void InsertImageMemoryBarrier( VkCommandBuffer& cmdbuffer, VkImage& image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange subresourceRange )
+	{
+		VkImageMemoryBarrier imageMemoryBarrier = ImageMemoryBarrier();
+		imageMemoryBarrier.srcAccessMask = srcAccessMask;
+		imageMemoryBarrier.dstAccessMask = dstAccessMask;
+		imageMemoryBarrier.oldLayout = oldImageLayout;
+		imageMemoryBarrier.newLayout = newImageLayout;
+		imageMemoryBarrier.image = image;
+		imageMemoryBarrier.subresourceRange = subresourceRange;
+
+		vkCmdPipelineBarrier(
+			cmdbuffer,
+			srcStageMask,
+			dstStageMask,
+			0,
+			0, nullptr,
+			0, nullptr,
+			1, &imageMemoryBarrier);
+	}
+
+	VkImageMemoryBarrier ImageMemoryBarrier( void )
+    {
+        VkImageMemoryBarrier imageMemoryBarrier {};
+        imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+        imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+        return imageMemoryBarrier;
+    }
+
 	VkCommandPoolCreateInfo CommandPoolCreateInfo( uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/ )
     {
         VkCommandPoolCreateInfo info = {};
@@ -58,6 +88,68 @@ namespace idVkTools {
         info.commandPool = pool;
         info.commandBufferCount = count;
         info.level = level;
+        return info;
+    }
+
+	VkCommandBufferBeginInfo CommandBufferBeginInfo(VkCommandBufferUsageFlags flags /*= 0*/)
+    {
+        VkCommandBufferBeginInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+        info.pNext = nullptr;
+
+        info.pInheritanceInfo = nullptr;
+        info.flags = flags;
+        return info;
+    }
+
+	VkFenceCreateInfo FenceCreateInfo( VkFenceCreateFlags flags /*= 0*/ )
+    {
+        VkFenceCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
+        info.flags = flags;
+        info.pNext = nullptr;
+
+        return info;
+    }
+	VkSemaphoreCreateInfo SemaphoreCreateInfo( void )
+    {
+        VkSemaphoreCreateInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
+        info.pNext = nullptr;
+        info.flags = 0;
+
+        return info;
+    }
+
+	VkSubmitInfo SubmitInfo( VkCommandBuffer* p_cmd )
+    {
+        VkSubmitInfo info = {};
+        info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+        info.pNext = nullptr;
+
+        info.waitSemaphoreCount = 0;
+        info.pWaitSemaphores = nullptr;
+        info.pWaitDstStageMask = nullptr;
+        info.commandBufferCount = 1;
+        info.pCommandBuffers = p_cmd;
+        info.signalSemaphoreCount = 0;
+        info.pSignalSemaphores = nullptr;
+
+        return info;
+    }
+
+	VkPresentInfoKHR PresentInfo( void )
+    {
+        VkPresentInfoKHR info = {};
+        info.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
+        info.pNext = nullptr;
+
+        info.swapchainCount = 0;
+        info.pSwapchains = nullptr;
+        info.pWaitSemaphores = nullptr;
+        info.waitSemaphoreCount = 0;
+        info.pImageIndices = nullptr;
+
         return info;
     }
 }

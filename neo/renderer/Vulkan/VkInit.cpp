@@ -19,11 +19,22 @@ public:
     virtual void       CreateSwapchain( uint32_t width, uint32_t height );
     virtual void       Shutdown( void );
     virtual VmaAllocator& GetGlobalMemoryAllocator( void );
+    virtual VkDevice& GetGlobalDevice( void );
+    VkSwapchainKHR& GetGlobalSwapchain( void );
+    VkQueue& GetGraphicsQueue( void );
+    virtual VkExtent2D& GetSwapchainExtent( void );
+    virtual VkImageView& GetCurrentSwapchainImageView( uint32_t& imageIndex );
+    virtual VkImage&     GetCurrentSwapchainImage( uint32_t& imageIndex );
+    virtual VkImage&     GetDepthImage( void );
+    virtual VkImageView& GetDepthImageView( void );
+    virtual VkFormat&    GetDepthFormat( void );
 
     virtual PerFrameData& GetCurrentFrame( int frameNumber ) { return perFrameData[frameNumber % frameOverlap];}
     virtual int GetFrameOverlap( void ) const {return frameOverlap;}
 private:
     void CreateCommandBuffer( void );
+
+    void CreateSyncObjects( void );
 
     VkInstance instance;
     VkDebugUtilsMessengerEXT debugMessenger;
@@ -50,13 +61,44 @@ private:
     PerFrameData perFrameData[frameOverlap];
 };
 
-idVulkanDeviceLocal vkdevice_local;
+idVulkanDeviceLocal vkdeviceLocal;
 
-idVulkanDevice* vkdevice = &vkdevice_local;
+idVulkanDevice* vkdevice = &vkdeviceLocal;
 
 
 VmaAllocator& idVulkanDeviceLocal::GetGlobalMemoryAllocator( void ) {
     return allocator;
+}
+
+VkDevice& idVulkanDeviceLocal::GetGlobalDevice( void ) {
+    return device;
+}
+
+VkSwapchainKHR& idVulkanDeviceLocal::GetGlobalSwapchain( void ) {
+    return swapchain;
+}
+
+VkQueue& idVulkanDeviceLocal::GetGraphicsQueue( void ) {
+    return graphicsQueue;
+}
+VkExtent2D& idVulkanDeviceLocal::GetSwapchainExtent( void ) {
+    return swapchainExtent;
+}
+VkImageView& idVulkanDeviceLocal::GetCurrentSwapchainImageView( uint32_t& imageIndex ) {
+    return swapchainImageViews[imageIndex];
+}
+VkImage& idVulkanDeviceLocal::GetCurrentSwapchainImage( uint32_t& imageIndex ) {
+    return swapchainImages[imageIndex];
+}
+
+VkImage& idVulkanDeviceLocal::GetDepthImage( void ) {
+    return depthImage.image;
+}
+VkImageView& idVulkanDeviceLocal::GetDepthImageView( void ) {
+    return depthImage.defaultView;
+}
+VkFormat& idVulkanDeviceLocal::GetDepthFormat( void ) {
+    return depthImage.imageFormat;
 }
 
 VkBool32 GetSupportedDepthFormat(VkPhysicalDevice& physicalDevice, VkFormat& depthFormat) {
@@ -140,6 +182,34 @@ void idVulkanDeviceLocal::CreateCommandBuffer( void ) {
 
     common->Printf("Vulkan Command Buffers created\n");
 }
+
+void idVulkanDeviceLocal::CreateSyncObjects( void ) {
+    //create syncronization structures
+	//one fence to control when the gpu has finished rendering the frame,
+	//and 2 semaphores to syncronize rendering with swapchain
+	//we want the fence to start signalled so we can wait on it on the first frame
+	VkFenceCreateInfo fenceCreateInfo = idVkTools::FenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+
+	VkSemaphoreCreateInfo semaphoreCreateInfo = idVkTools::SemaphoreCreateInfo();
+
+	for (auto& frame : perFrameData) {
+
+		ID_VK_CHECK_RESULT(vkCreateFence(device, &fenceCreateInfo, nullptr, &frame.renderFence));
+
+
+		ID_VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.presentSemaphore));
+		ID_VK_CHECK_RESULT(vkCreateSemaphore(device, &semaphoreCreateInfo, nullptr, &frame.renderSemaphore));
+		
+	}
+
+    //TODO: upload sync
+	// VkFenceCreateInfo uploadFenceCreateInfo = vkdefaults::FenceCreateInfo();
+
+	// ID_VK_CHECK_RESULT(vkCreateFence(DeviceManager::GetVkDevice().device, &uploadFenceCreateInfo, nullptr, &upload_context.upload_fence));
+
+    common->Printf("Vulkan Sync Objects created\n");
+}
+
 
 void idVulkanDeviceLocal::Init( void ){
     common->Printf( "Initializing Vulkan Device\n" );
@@ -252,7 +322,7 @@ void idVulkanDeviceLocal::Init( void ){
 
     //creating and allocating at the application startup time should be enough
     CreateCommandBuffer();
-
+    CreateSyncObjects();
 }
 
 void idVulkanDeviceLocal::CreateSwapchain( uint32_t width, uint32_t height ) {
@@ -301,7 +371,8 @@ void idVulkanDeviceLocal::CreateSwapchain( uint32_t width, uint32_t height ) {
 
 
 void idVulkanDeviceLocal::Shutdown( void ) {
-    
+    vkInitialized = false;
+    vkDeviceWaitIdle(device);
     for ( auto frame : perFrameData ) {
         frame.CleanUp(device);
     }

@@ -25,6 +25,8 @@ If you have questions concerning this license or the applicable additional terms
 
 ===========================================================================
 */
+#include "framework/Common.h"
+#include "renderer/Vulkan/VkInit.h"
 #include "sys/platform.h"
 #include "idlib/containers/List.h"
 #include "framework/EventLoop.h"
@@ -565,83 +567,93 @@ BeginFrame
 ====================
 */
 void idRenderSystemLocal::BeginFrame( int windowWidth, int windowHeight ) {
-	setBufferCommand_t	*cmd;
-
-	if ( !glConfig.isInitialized ) {
-		return;
-	}
-
-	// DG: r_lockSurfaces only works properly if r_useScissor is disabled
-	if ( r_lockSurfaces.IsModified() ) {
-		static bool origUseScissor = true;
-		r_lockSurfaces.ClearModified();
-		if ( r_lockSurfaces.GetBool() ) {
-			origUseScissor = r_useScissor.GetBool();
-			r_useScissor.SetBool( false );
-		} else {
-			r_useScissor.SetBool( origUseScissor );
+	if ( r_renderApi.GetBool() ) {
+		if( !vkdevice->vkInitialized ) {
+			return;
 		}
-	} // DG end
-
-	// determine which back end we will use
-	SetBackEndRenderer();
-
-	guiModel->Clear();
-
-	// for the larger-than-window tiled rendering screenshots
-	if ( tiledViewport[0] ) {
-		windowWidth = tiledViewport[0];
-		windowHeight = tiledViewport[1];
+		vkrbe->frameCount = frameCount;
+		vkrbe->PrepareFrame();
+		vkrbe->BeginRenderLayer();
 	}
+	else {
+		setBufferCommand_t	*cmd;
 
-	// DG: save the original size, so editors don't mess up the game viewport
-	//     with their tiny (texture-preview etc) viewports.
-	origWidth = glConfig.vidWidth;
-	origHeight = glConfig.vidHeight;
+		if ( !glConfig.isInitialized ) {
+			return;
+		}
 
-	glConfig.vidWidth = windowWidth;
-	glConfig.vidHeight = windowHeight;
+		// DG: r_lockSurfaces only works properly if r_useScissor is disabled
+		if ( r_lockSurfaces.IsModified() ) {
+			static bool origUseScissor = true;
+			r_lockSurfaces.ClearModified();
+			if ( r_lockSurfaces.GetBool() ) {
+				origUseScissor = r_useScissor.GetBool();
+				r_useScissor.SetBool( false );
+			} else {
+				r_useScissor.SetBool( origUseScissor );
+			}
+		} // DG end
 
-	renderCrops[0].x = 0;
-	renderCrops[0].y = 0;
-	renderCrops[0].width = windowWidth;
-	renderCrops[0].height = windowHeight;
-	currentRenderCrop = 0;
+		// determine which back end we will use
+		SetBackEndRenderer();
 
-	// screenFraction is just for quickly testing fill rate limitations
-	if ( r_screenFraction.GetInteger() != 100 ) {
-		int	w = SCREEN_WIDTH * r_screenFraction.GetInteger() / 100.0f;
-		int h = SCREEN_HEIGHT * r_screenFraction.GetInteger() / 100.0f;
-		CropRenderSize( w, h );
-	}
+		guiModel->Clear();
+
+		// for the larger-than-window tiled rendering screenshots
+		if ( tiledViewport[0] ) {
+			windowWidth = tiledViewport[0];
+			windowHeight = tiledViewport[1];
+		}
+
+		// DG: save the original size, so editors don't mess up the game viewport
+		//     with their tiny (texture-preview etc) viewports.
+		origWidth = glConfig.vidWidth;
+		origHeight = glConfig.vidHeight;
+
+		glConfig.vidWidth = windowWidth;
+		glConfig.vidHeight = windowHeight;
+
+		renderCrops[0].x = 0;
+		renderCrops[0].y = 0;
+		renderCrops[0].width = windowWidth;
+		renderCrops[0].height = windowHeight;
+		currentRenderCrop = 0;
+
+		// screenFraction is just for quickly testing fill rate limitations
+		if ( r_screenFraction.GetInteger() != 100 ) {
+			int	w = SCREEN_WIDTH * r_screenFraction.GetInteger() / 100.0f;
+			int h = SCREEN_HEIGHT * r_screenFraction.GetInteger() / 100.0f;
+			CropRenderSize( w, h );
+		}
 
 
-	// this is the ONLY place this is modified
-	frameCount++;
+		// this is the ONLY place this is modified
+		frameCount++;
 
-	// just in case we did a common->Error while this
-	// was set
-	guiRecursionLevel = 0;
+		// just in case we did a common->Error while this
+		// was set
+		guiRecursionLevel = 0;
 
-	// the first rendering will be used for commands like
-	// screenshot, rather than a possible subsequent remote
-	// or mirror render
-//	primaryWorld = NULL;
+		// the first rendering will be used for commands like
+		// screenshot, rather than a possible subsequent remote
+		// or mirror render
+	//	primaryWorld = NULL;
 
-	// set the time for shader effects in 2D rendering
-	frameShaderTime = eventLoop->Milliseconds() * 0.001;
+		// set the time for shader effects in 2D rendering
+		frameShaderTime = eventLoop->Milliseconds() * 0.001;
 
-	//
-	// draw buffer stuff
-	//
-	cmd = (setBufferCommand_t *)R_GetCommandBuffer( sizeof( *cmd ) );
-	cmd->commandId = RC_SET_BUFFER;
-	cmd->frameCount = frameCount;
+		//
+		// draw buffer stuff
+		//
+		cmd = (setBufferCommand_t *)R_GetCommandBuffer( sizeof( *cmd ) );
+		cmd->commandId = RC_SET_BUFFER;
+		cmd->frameCount = frameCount;
 
-	if ( r_frontBuffer.GetBool() ) {
-		cmd->buffer = (int)GL_FRONT;
-	} else {
-		cmd->buffer = (int)GL_BACK;
+		if ( r_frontBuffer.GetBool() ) {
+			cmd->buffer = (int)GL_FRONT;
+		} else {
+			cmd->buffer = (int)GL_BACK;
+		}
 	}
 }
 
@@ -663,62 +675,72 @@ Returns the number of msec spent in the back end
 =============
 */
 void idRenderSystemLocal::EndFrame( int *frontEndMsec, int *backEndMsec ) {
-	emptyCommand_t *cmd;
-
-	if ( !glConfig.isInitialized ) {
-		return;
-	}
-
-	// close any gui drawing
-	guiModel->EmitFullScreen();
-	guiModel->Clear();
-
-	// save out timing information
-	if ( frontEndMsec ) {
-		*frontEndMsec = pc.frontEndMsec;
-	}
-	if ( backEndMsec ) {
-		*backEndMsec = backEnd.pc.msec;
-	}
-
-	// print any other statistics and clear all of them
-	R_PerformanceCounters();
-
-	// check for dynamic changes that require some initialization
-	R_CheckCvars();
-
-	// check for errors
-	GL_CheckErrors();
-
-	// add the swapbuffers command
-	cmd = (emptyCommand_t *)R_GetCommandBuffer( sizeof( *cmd ) );
-	cmd->commandId = RC_SWAP_BUFFERS;
-
-	// start the back end up again with the new command list
-	R_IssueRenderCommands();
-
-	// use the other buffers next frame, because another CPU
-	// may still be rendering into the current buffers
-
-	R_ToggleSmpFrame();
-
-	// we can now release the vertexes used this frame
-	vertexCache.EndFrame();
-
-	if ( session->writeDemo ) {
-		session->writeDemo->WriteInt( DS_RENDER );
-		session->writeDemo->WriteInt( DC_END_FRAME );
-		if ( r_showDemo.GetBool() ) {
-			common->Printf( "write DC_END_FRAME\n" );
+	if ( r_renderApi.GetBool() ) {
+		if( !vkdevice->vkInitialized ) {
+			return;
 		}
+		vkrbe->EndRenderLayer();
+		vkrbe->SubmitFrame();
+		frameCount++;
 	}
+	else {
+		emptyCommand_t *cmd;
 
-	// DG: restore the original size that was set before BeginFrame() overwrote it
-	//     with its function-arguments, so editors don't mess up our viewport.
-	//     (unsure why/how this at least *kinda* worked in original Doom3,
-	//      maybe glConfig.vidWidth/Height was reset if the window gained focus or sth)
-	glConfig.vidWidth = origWidth;
-	glConfig.vidHeight = origHeight;
+		if ( !glConfig.isInitialized ) {
+			return;
+		}
+
+		// close any gui drawing
+		guiModel->EmitFullScreen();
+		guiModel->Clear();
+
+		// save out timing information
+		if ( frontEndMsec ) {
+			*frontEndMsec = pc.frontEndMsec;
+		}
+		if ( backEndMsec ) {
+			*backEndMsec = backEnd.pc.msec;
+		}
+
+		// print any other statistics and clear all of them
+		R_PerformanceCounters();
+
+		// check for dynamic changes that require some initialization
+		R_CheckCvars();
+
+		// check for errors
+		GL_CheckErrors();
+
+		// add the swapbuffers command
+		cmd = (emptyCommand_t *)R_GetCommandBuffer( sizeof( *cmd ) );
+		cmd->commandId = RC_SWAP_BUFFERS;
+
+		// start the back end up again with the new command list
+		R_IssueRenderCommands();
+
+		// use the other buffers next frame, because another CPU
+		// may still be rendering into the current buffers
+
+		R_ToggleSmpFrame();
+
+		// we can now release the vertexes used this frame
+		vertexCache.EndFrame();
+
+		if ( session->writeDemo ) {
+			session->writeDemo->WriteInt( DS_RENDER );
+			session->writeDemo->WriteInt( DC_END_FRAME );
+			if ( r_showDemo.GetBool() ) {
+				common->Printf( "write DC_END_FRAME\n" );
+			}
+		}
+
+		// DG: restore the original size that was set before BeginFrame() overwrote it
+		//     with its function-arguments, so editors don't mess up our viewport.
+		//     (unsure why/how this at least *kinda* worked in original Doom3,
+		//      maybe glConfig.vidWidth/Height was reset if the window gained focus or sth)
+		glConfig.vidWidth = origWidth;
+		glConfig.vidHeight = origHeight;
+	}
 }
 
 /*

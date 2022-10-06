@@ -40,10 +40,23 @@ namespace idVkTools {
 		VkDescriptorBufferInfo buffer_info;
 	};
 
+	void InsertImageMemoryBarrier( VkCommandBuffer& cmdbuffer, VkImage& image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange subresourceRange );
+
+	VkImageMemoryBarrier ImageMemoryBarrier( void );
 
 	VkCommandPoolCreateInfo CommandPoolCreateInfo( uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0 );
 
 	VkCommandBufferAllocateInfo CommandBufferAllocateInfo( VkCommandPool& pool, uint32_t count = 1, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY );
+
+	VkCommandBufferBeginInfo CommandBufferBeginInfo( VkCommandBufferUsageFlags flags = 0 );
+
+	VkFenceCreateInfo FenceCreateInfo( VkFenceCreateFlags flags = 0 );
+
+	VkSemaphoreCreateInfo SemaphoreCreateInfo( void );
+
+	VkSubmitInfo SubmitInfo( VkCommandBuffer* p_cmd );
+
+	VkPresentInfoKHR PresentInfo( void );
 	
 }
 
