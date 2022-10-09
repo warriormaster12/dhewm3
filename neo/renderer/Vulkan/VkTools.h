@@ -8,6 +8,8 @@
 
 #include "framework/Common.h"
 
+#include <vector>
+
 
 
 
@@ -71,4 +73,7 @@ namespace idVkTools {
 }
 
 const char * VK_ErrorToString( VkResult result );
+
+
+
 

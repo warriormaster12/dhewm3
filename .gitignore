@@ -2,6 +2,7 @@
 *~
 .*.swp
 *.pyc
+*.pk4
 .cproject
 .project
 .settings/

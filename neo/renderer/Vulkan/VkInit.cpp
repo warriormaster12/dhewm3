@@ -25,6 +25,7 @@ public:
     virtual VkExtent2D& GetSwapchainExtent( void );
     virtual VkImageView& GetCurrentSwapchainImageView( uint32_t& imageIndex );
     virtual VkImage&     GetCurrentSwapchainImage( uint32_t& imageIndex );
+    virtual VkFormat&     GetCurrentSwapchainImageFormat( void );
     virtual VkImage&     GetDepthImage( void );
     virtual VkImageView& GetDepthImageView( void );
     virtual VkFormat&    GetDepthFormat( void );
@@ -89,6 +90,10 @@ VkImageView& idVulkanDeviceLocal::GetCurrentSwapchainImageView( uint32_t& imageI
 }
 VkImage& idVulkanDeviceLocal::GetCurrentSwapchainImage( uint32_t& imageIndex ) {
     return swapchainImages[imageIndex];
+}
+
+VkFormat& idVulkanDeviceLocal::GetCurrentSwapchainImageFormat( void ) {
+    return swapchainImageFormat;
 }
 
 VkImage& idVulkanDeviceLocal::GetDepthImage( void ) {

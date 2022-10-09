@@ -45,6 +45,7 @@ public:
     virtual VkExtent2D& GetSwapchainExtent( void ) = 0;
     virtual VkImageView& GetCurrentSwapchainImageView( uint32_t& imageIndex ) = 0;
     virtual VkImage&     GetCurrentSwapchainImage( uint32_t& imageIndex ) = 0;
+    virtual VkFormat&     GetCurrentSwapchainImageFormat( void ) = 0;
     virtual VkImage&     GetDepthImage( void ) = 0;
     virtual VkImageView& GetDepthImageView( void ) = 0;
     virtual VkFormat&    GetDepthFormat( void ) = 0;
@@ -72,3 +73,24 @@ public:
 
 extern idVulkanDevice * 	vkdevice;
 extern idVulkanRBE *        vkrbe;
+
+
+/*
+===============
+PipelineBuilder
+===============
+*/
+struct idPipeline {
+	VkPipeline pipeline;
+	VkViewport viewport;
+	VkRect2D scissor;
+	VkPipelineLayout pipelineLayout;
+    ~idPipeline();
+};
+
+class idPipelineBuilder {
+public:
+	virtual idPipeline BuildGraphicsPipeline(std::vector<const char*> files, std::vector<VkShaderStageFlagBits> shaderStageFlags) = 0;
+};
+
+extern idPipelineBuilder* 	pipelinebuilder;

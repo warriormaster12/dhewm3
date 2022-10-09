@@ -27,6 +27,7 @@ If you have questions concerning this license or the applicable additional terms
 */
 #include "framework/CVarSystem.h"
 #include "renderer/Vulkan/VkInit.h"
+#include "renderer/Vulkan/VkTools.h"
 #include "sys/platform.h"
 #include "idlib/LangDict.h"
 #include "framework/Licensee.h"
@@ -686,6 +687,9 @@ void R_InitVulkan( void ) {
 
 	vkdevice->Init();
 	vkdevice->CreateSwapchain(parms.width, parms.height);
+	pipelinebuilder->BuildGraphicsPipeline({"base/renderprogs/simple_triangle.vert.spv","base/renderprogs/simple_triangle.frag.spv"}
+	, {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT}
+	);
 	vkdevice->vkInitialized = true;
 }
 

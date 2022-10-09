@@ -488,6 +488,7 @@ set(src_renderer
 	renderer/Vulkan/VkInit.cpp
 	renderer/Vulkan/VkTools.cpp
 	renderer/Vulkan/VkBackend.cpp
+	renderer/Vulkan/VkPipelineBuilder.cpp
 )
 
 # I'm a bit sloppy with headers and just glob them in..
