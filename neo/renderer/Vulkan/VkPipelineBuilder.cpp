@@ -4,6 +4,7 @@
 #include <fstream>
 
 
+
 class idPipelineBuilderLocal : public idPipelineBuilder {
 public:
 	virtual idPipeline BuildGraphicsPipeline(std::vector<const char*> files, std::vector<VkShaderStageFlagBits> shaderStageFlags);
@@ -110,13 +111,13 @@ VkPipelineInputAssemblyStateCreateInfo InputAssemblyCreateInfo(VkPrimitiveTopolo
     return info;
 }
 
-VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMode polygonMode)
+VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMode polygonMode, bool depthEnabled)
 {
     VkPipelineRasterizationStateCreateInfo info = {};
     info.sType = VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO;
     info.pNext = nullptr;
-
-    info.depthClampEnable = VK_FALSE;
+    
+    info.depthClampEnable = static_cast<VkBool32>(depthEnabled);
     //discards all primitives before the rasterization stage if enabled which we don't want
     info.rasterizerDiscardEnable = VK_FALSE;
 
@@ -126,7 +127,7 @@ VkPipelineRasterizationStateCreateInfo RasterizationStateCreateInfo(VkPolygonMod
     info.cullMode = VK_CULL_MODE_NONE;
     info.frontFace = VK_FRONT_FACE_CLOCKWISE;
     //no depth bias
-    info.depthBiasEnable = VK_FALSE;
+    info.depthBiasEnable = static_cast<VkBool32>(depthEnabled);
     info.depthBiasConstantFactor = 0.0f;
     info.depthBiasClamp = 0.0f;
     info.depthBiasSlopeFactor = 0.0f;
@@ -197,7 +198,7 @@ idPipeline idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char 
 	inputAssembly = InputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
 	//configure the rasterizer to draw filled triangles
-	rasterizer = RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+	rasterizer = RasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, false);
 
 	//we don't use multisampling, so just run the default one
 	multisampling = MultisamplingStateCreateInfo();
@@ -238,12 +239,20 @@ idPipeline idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char 
     dStateInfo.dynamicStateCount = dStates.size();
     dStateInfo.pDynamicStates = dStates.data();
 
+    // New create info to define color, depth and stencil attachments at pipeline create time
+    VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = {};
+    pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
+    pipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    pipelineRenderingCreateInfo.pColorAttachmentFormats = &vkdevice->GetCurrentSwapchainImageFormat();
+    
+    // pipelineRenderingCreateInfo.depthAttachmentFormat = vkdevice->GetDepthFormat();
+    // pipelineRenderingCreateInfo.stencilAttachmentFormat =  vkdevice->GetDepthFormat();
+    pipelineRenderingCreateInfo.viewMask = 0;
+
     //build the actual pipeline
 	//we now use all of the info structs we have been writing into into this one to create the pipeline
 	VkGraphicsPipelineCreateInfo pipelineInfo = {};
 	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.pNext = nullptr;
-
 	pipelineInfo.stageCount = shaderStages.size();
 	pipelineInfo.pStages = shaderStages.data();
 	pipelineInfo.pVertexInputState = &vertexInputInfo;
@@ -254,20 +263,9 @@ idPipeline idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char 
 	pipelineInfo.pColorBlendState = &colorBlending;
 	pipelineInfo.layout = idPipeline.pipelineLayout;
     pipelineInfo.pDynamicState = &dStateInfo;
-	//pipelineInfo.renderPass = pass;
+	pipelineInfo.renderPass = VK_NULL_HANDLE;
 	pipelineInfo.subpass = 0;
 	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
-    // New create info to define color, depth and stencil attachments at pipeline create time
-    VkPipelineRenderingCreateInfoKHR pipelineRenderingCreateInfo = {};
-    pipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO_KHR;
-    pipelineRenderingCreateInfo.colorAttachmentCount = 1;
-    pipelineRenderingCreateInfo.pColorAttachmentFormats = &vkdevice->GetCurrentSwapchainImageFormat();
-    
-    // pipelineRenderingCreateInfo.depthAttachmentFormat = vkdevice->GetDepthFormat();
-    // pipelineRenderingCreateInfo.stencilAttachmentFormat =  vkdevice->GetDepthFormat();
-    pipelineRenderingCreateInfo.viewMask = 0;
-    
     pipelineInfo.pNext = &pipelineRenderingCreateInfo;
 
 	//it's easy to error out on create graphics pipeline, so we handle it a bit better than the common VK_CHECK case
@@ -282,7 +280,7 @@ idPipeline idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char 
 }
 
 
-idPipeline::~idPipeline() {
+void idPipeline::DestroyPipeline() {
     vkDestroyPipelineLayout(vkdevice->GetGlobalDevice(), pipelineLayout, nullptr);
     vkDestroyPipeline(vkdevice->GetGlobalDevice(), pipeline, nullptr);
 }

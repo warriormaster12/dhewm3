@@ -378,6 +378,7 @@ void idVulkanDeviceLocal::CreateSwapchain( uint32_t width, uint32_t height ) {
 void idVulkanDeviceLocal::Shutdown( void ) {
     vkInitialized = false;
     vkDeviceWaitIdle(device);
+    vkrbe->CleanUp();
     for ( auto frame : perFrameData ) {
         frame.CleanUp(device);
     }

@@ -33,6 +33,27 @@ struct PerFrameData {
     }
 };
 
+/*
+===============
+PipelineBuilder
+===============
+*/
+struct idPipeline {
+	VkPipeline pipeline;
+	VkViewport viewport;
+	VkRect2D scissor;
+	VkPipelineLayout pipelineLayout;
+    bool depthEnabled;
+    void DestroyPipeline();
+};
+
+class idPipelineBuilder {
+public:
+	virtual idPipeline BuildGraphicsPipeline(std::vector<const char*> files, std::vector<VkShaderStageFlagBits> shaderStageFlags) = 0;
+};
+
+extern idPipelineBuilder* 	pipelinebuilder;
+
 class idVulkanDevice {
 public:
     virtual void        Init( void ) = 0;
@@ -66,6 +87,8 @@ public:
     virtual void        BeginRenderLayer( void ) = 0;
     virtual void        EndRenderLayer( void ) = 0; 
 
+    virtual void        CleanUp( void ) = 0;
+
     int frameCount = 0;
 };
 
@@ -75,22 +98,3 @@ extern idVulkanDevice * 	vkdevice;
 extern idVulkanRBE *        vkrbe;
 
 
-/*
-===============
-PipelineBuilder
-===============
-*/
-struct idPipeline {
-	VkPipeline pipeline;
-	VkViewport viewport;
-	VkRect2D scissor;
-	VkPipelineLayout pipelineLayout;
-    ~idPipeline();
-};
-
-class idPipelineBuilder {
-public:
-	virtual idPipeline BuildGraphicsPipeline(std::vector<const char*> files, std::vector<VkShaderStageFlagBits> shaderStageFlags) = 0;
-};
-
-extern idPipelineBuilder* 	pipelinebuilder;

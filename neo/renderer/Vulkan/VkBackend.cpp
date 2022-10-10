@@ -7,6 +7,7 @@ public:
     virtual void SubmitFrame( void );
     virtual void BeginRenderLayer( void );
     virtual void EndRenderLayer( void );
+    virtual void CleanUp( void );
 private:
     uint32_t imageIndex = 0;
 };
@@ -14,6 +15,9 @@ private:
 idVulkanRBELocal vkrbeLocal;
 
 idVulkanRBE* vkrbe = &vkrbeLocal;
+
+idPipeline testPipeline;
+bool doOnce = false;
 
 
 void idVulkanRBELocal::PrepareFrame( void ){
@@ -105,11 +109,39 @@ void idVulkanRBELocal::BeginRenderLayer( void ) {
     renderingInfo.viewMask = 0;
     renderingInfo.colorAttachmentCount = 1;
     renderingInfo.pColorAttachments = &colorAttachment;
-    renderingInfo.pDepthAttachment = &depthStencilAttachment;
-    renderingInfo.pStencilAttachment = &depthStencilAttachment;
+    if(doOnce != true) {
+        testPipeline = pipelinebuilder->BuildGraphicsPipeline({"base/renderprogs/simple_triangle.vert.spv","base/renderprogs/simple_triangle.frag.spv"}
+        , {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT}
+        );
+        doOnce = true;
+    }
+    testPipeline.depthEnabled = false;
+    if (testPipeline.depthEnabled) {
+        renderingInfo.pDepthAttachment = &depthStencilAttachment;
+        renderingInfo.pStencilAttachment = &depthStencilAttachment;
+    }
 
     // Begin dynamic rendering
     vkCmdBeginRenderingKHR(currentFrame.commandBuffer, &renderingInfo);
+    
+
+    testPipeline.viewport.width = vkdevice->GetSwapchainExtent().width;
+    testPipeline.viewport.height = vkdevice->GetSwapchainExtent().height;
+    testPipeline.viewport.x = 0.0f;
+    testPipeline.viewport.y = 0.0f;
+    testPipeline.viewport.minDepth = 0.0f;
+    testPipeline.viewport.maxDepth = 1.0f;
+    
+    testPipeline.scissor.extent = vkdevice->GetSwapchainExtent();
+    testPipeline.scissor.offset = {0, 0};
+
+    vkCmdSetViewport(currentFrame.commandBuffer, 0, 1, &testPipeline.viewport);
+    vkCmdSetScissor(currentFrame.commandBuffer, 0, 1,&testPipeline.scissor);
+
+    vkCmdBindPipeline(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, testPipeline.pipeline);
+    vkCmdDraw(currentFrame.commandBuffer, 3, 1, 0, 0);
+
+
 }
 
 void idVulkanRBELocal::EndRenderLayer( void ) {
@@ -180,4 +212,8 @@ void idVulkanRBELocal::SubmitFrame( void ) {
 		common->FatalError("failed to present swap chain image!");
 		abort();
 	}
+}
+
+void idVulkanRBELocal::CleanUp() {
+    testPipeline.DestroyPipeline();
 }

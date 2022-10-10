@@ -305,6 +305,9 @@ R_CheckPortableExtensions
 
 ==================
 */
+
+
+
 static void R_CheckPortableExtensions( void ) {
 	glConfig.glVersion = atof( glConfig.version_string );
 
@@ -687,9 +690,6 @@ void R_InitVulkan( void ) {
 
 	vkdevice->Init();
 	vkdevice->CreateSwapchain(parms.width, parms.height);
-	pipelinebuilder->BuildGraphicsPipeline({"base/renderprogs/simple_triangle.vert.spv","base/renderprogs/simple_triangle.frag.spv"}
-	, {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT}
-	);
 	vkdevice->vkInitialized = true;
 }
 
