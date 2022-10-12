@@ -34,12 +34,17 @@ namespace idVkTools {
 	};
 
 	struct AllocatedBuffer {
-		VkBuffer buffer;
+		VkBuffer buffer = VK_NULL_HANDLE;
 		VmaAllocation allocation;
+		VkBufferUsageFlags usage;
 
-		VkBufferUsageFlags buffer_usage = {};
+		void AllocateBuffer( const void* pdata, const uint32_t& dataSize, uint32_t typeSize );
 
-		VkDescriptorBufferInfo buffer_info;
+		void DestroyBuffer( VmaAllocator& allocator ) {
+			if (buffer != VK_NULL_HANDLE) {
+				vmaDestroyBuffer(allocator, buffer, allocation);
+			}
+		}
 	};
 
 	void InsertImageMemoryBarrier( VkCommandBuffer& cmdbuffer, VkImage& image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange subresourceRange );

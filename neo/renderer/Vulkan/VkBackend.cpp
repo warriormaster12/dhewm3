@@ -1,6 +1,8 @@
 #include "VkInit.h"
 #include "VkTools.h"
 
+#include "idlib/math/Vector.h"
+
 class idVulkanRBELocal : public idVulkanRBE {
 public: 
     virtual void PrepareFrame( void );
@@ -17,6 +19,15 @@ idVulkanRBELocal vkrbeLocal;
 idVulkanRBE* vkrbe = &vkrbeLocal;
 
 idPipeline testPipeline;
+
+idVkTools::AllocatedBuffer vertexBuffer;
+
+bool doOnce = true;
+
+struct Vertex {
+    idVec3 position;
+    idVec3 color;
+};
 
 
 void idVulkanRBELocal::PrepareFrame( void ){
@@ -114,6 +125,23 @@ void idVulkanRBELocal::BeginRenderLayer( void ) {
         renderingInfo.pStencilAttachment = &depthStencilAttachment;
     }
 
+    if(doOnce) {
+        std::vector<Vertex> vertices;
+        vertices.resize(3);
+        //vertex positions
+        vertices[0].position.Set(1.f, 1.f, 0.0f );
+        vertices[1].position.Set(-1.f, 1.f, 0.0f );
+        vertices[2].position.Set(0.f,-1.f, 0.0f);
+
+        //vertex colors, all green
+        vertices[0].color.Set(1.f,0.f, 0.0f); //pure red
+        vertices[1].color.Set(0.f,1.f, 0.0f); //pure green
+        vertices[2].color.Set(0.f,0.f, 1.0f); //pure blue
+        vertexBuffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
+        vertexBuffer.AllocateBuffer(vertices.data(),vertices.size(), sizeof(Vertex));
+        doOnce = false;
+    }
+
     // Begin dynamic rendering
     vkCmdBeginRenderingKHR(currentFrame.commandBuffer, &renderingInfo);
     
@@ -132,6 +160,10 @@ void idVulkanRBELocal::BeginRenderLayer( void ) {
 
         vkCmdSetViewport(currentFrame.commandBuffer, 0, 1, &testPipeline.viewport);
         vkCmdSetScissor(currentFrame.commandBuffer, 0, 1,&testPipeline.scissor);
+
+        //bind the mesh vertex buffer with offset 0
+        VkDeviceSize offset = 0;
+        vkCmdBindVertexBuffers(currentFrame.commandBuffer, 0, 1, &vertexBuffer.buffer, &offset);
 
         vkCmdBindPipeline(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, testPipeline.pipeline);
         vkCmdDraw(currentFrame.commandBuffer, 3, 1, 0, 0);
@@ -210,4 +242,5 @@ void idVulkanRBELocal::SubmitFrame( void ) {
 
 void idVulkanRBELocal::CleanUp() {
     testPipeline.DestroyPipeline();
+    vertexBuffer.DestroyBuffer(vkdevice->GetGlobalMemoryAllocator());
 }

@@ -1,4 +1,5 @@
 #include "VkTools.h"
+#include "VkInit.h"
 
 #define ID_VK_ERROR_STRING( x ) case static_cast< int >( x ): return #x
 
@@ -151,5 +152,34 @@ namespace idVkTools {
         info.pImageIndices = nullptr;
 
         return info;
+    }
+
+
+    void AllocatedBuffer::AllocateBuffer( const void* pdata,const uint32_t& dataSize, uint32_t typeSize  ) {
+        //allocate vertex buffer
+        VkBufferCreateInfo bufferInfo = {};
+        bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+        //this is the total size, in bytes, of the buffer we are allocating
+        bufferInfo.size = dataSize * typeSize;
+        //this buffer is going to be used as a Vertex Buffer
+        bufferInfo.usage = usage;
+
+
+        //let the VMA library know that this data should be writeable by CPU, but also readable by GPU
+        VmaAllocationCreateInfo vmaallocInfo = {};
+        vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+
+        //allocate the buffer
+        ID_VK_CHECK_RESULT(vmaCreateBuffer(vkdevice->GetGlobalMemoryAllocator(), &bufferInfo, &vmaallocInfo,
+            &buffer,
+            &allocation,
+            nullptr));
+        //copy vertex data
+        void* data;
+        vmaMapMemory(vkdevice->GetGlobalMemoryAllocator(), allocation, &data);
+
+        memcpy(data, pdata, dataSize * typeSize);
+
+        vmaUnmapMemory(vkdevice->GetGlobalMemoryAllocator(), allocation);
     }
 }
