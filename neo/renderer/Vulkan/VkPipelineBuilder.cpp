@@ -227,7 +227,7 @@ bool idPipelineBuilderLocal::LoadShaderModule(std::vector<const char*> shaderFil
 }
 
 
-VertexInputDescription GetVertexDescription(std::vector<SpvReflectInterfaceVariable*> inputVars)
+bool GetVertexDescription(std::vector<SpvReflectInterfaceVariable*> inputVars, VertexInputDescription& outDescription)
 {
     //we will have just 1 vertex buffer binding, with a per-vertex rate
 	VkVertexInputBindingDescription description = {};
@@ -249,6 +249,10 @@ VertexInputDescription GetVertexDescription(std::vector<SpvReflectInterfaceVaria
         attributeDescriptions.push_back(attribute);
     }
 
+    if(attributeDescriptions.size()==0) {
+        return false;
+    }
+
     std::sort(attributeDescriptions.begin(), attributeDescriptions.end(),[](const VkVertexInputAttributeDescription& a, const VkVertexInputAttributeDescription& b) {
         return a.location < b.location;
     });
@@ -259,11 +263,10 @@ VertexInputDescription GetVertexDescription(std::vector<SpvReflectInterfaceVaria
       description.stride += formatSize;
     }
 
-    VertexInputDescription outDescription = {};
     outDescription.attributes = attributeDescriptions;
     outDescription.bindings.push_back(description);
 
-    return outDescription;
+    return true;
 }
 
 
@@ -408,16 +411,13 @@ bool idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char *> fil
             std::vector<SpvReflectInterfaceVariable*> inputVars(varCount);
             result = spvReflectEnumerateInputVariables(&currentModule, &varCount, inputVars.data());
             assert(result == SPV_REFLECT_RESULT_SUCCESS);
-            for(auto& inputVar: inputVars ) {
-                // ignore built-in variables
-                if (inputVar->decoration_flags & SPV_REFLECT_DECORATION_BUILT_IN) { 
-                    vertexDescription = GetVertexDescription(inputVars);
-                    vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
-                    vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
-                    vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data(); 
-                    vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
-                    break;
-                }
+            vertexDescription = {};
+            if (GetVertexDescription(inputVars, vertexDescription)) { 
+                vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+                vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
+                vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data(); 
+                vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
+                break;
             } 
         }
         break;
