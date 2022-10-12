@@ -25,6 +25,7 @@ If you have questions concerning this license or the applicable additional terms
 
 ===========================================================================
 */
+#include "framework/Common.h"
 #include "sys/platform.h"
 
 #include "renderer/tr_local.h"

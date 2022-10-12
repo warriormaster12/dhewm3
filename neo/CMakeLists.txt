@@ -483,6 +483,7 @@ set(src_renderer
 	renderer/tr_turboshadow.cpp
 
 	renderer/Vulkan/third-party/vk-bootstrap/VkBootstrap.cpp
+	renderer/Vulkan/third-party/spirv-reflect/spirv_reflect.c
 	renderer/Vulkan/third-party/vma/vk_mem_alloc.cpp
 	renderer/Vulkan/third-party/volk/volk.c
 	renderer/Vulkan/VkInit.cpp

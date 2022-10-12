@@ -1,62 +1,269 @@
 #include "VkTools.h"
 #include "VkInit.h"
 
+#include "framework/Common.h"
+#include "renderer/Vulkan/third-party/spirv-reflect/spirv_reflect.h"
+
+#include <cstddef>
 #include <fstream>
+#include <algorithm>
 
+static uint32_t FormatSize(VkFormat format)
+{
+  uint32_t result = 0;
+  switch (format) {
+  case VK_FORMAT_UNDEFINED: result = 0; break;
+  case VK_FORMAT_R4G4_UNORM_PACK8: result = 1; break;
+  case VK_FORMAT_R4G4B4A4_UNORM_PACK16: result = 2; break;
+  case VK_FORMAT_B4G4R4A4_UNORM_PACK16: result = 2; break;
+  case VK_FORMAT_R5G6B5_UNORM_PACK16: result = 2; break;
+  case VK_FORMAT_B5G6R5_UNORM_PACK16: result = 2; break;
+  case VK_FORMAT_R5G5B5A1_UNORM_PACK16: result = 2; break;
+  case VK_FORMAT_B5G5R5A1_UNORM_PACK16: result = 2; break;
+  case VK_FORMAT_A1R5G5B5_UNORM_PACK16: result = 2; break;
+  case VK_FORMAT_R8_UNORM: result = 1; break;
+  case VK_FORMAT_R8_SNORM: result = 1; break;
+  case VK_FORMAT_R8_USCALED: result = 1; break;
+  case VK_FORMAT_R8_SSCALED: result = 1; break;
+  case VK_FORMAT_R8_UINT: result = 1; break;
+  case VK_FORMAT_R8_SINT: result = 1; break;
+  case VK_FORMAT_R8_SRGB: result = 1; break;
+  case VK_FORMAT_R8G8_UNORM: result = 2; break;
+  case VK_FORMAT_R8G8_SNORM: result = 2; break;
+  case VK_FORMAT_R8G8_USCALED: result = 2; break;
+  case VK_FORMAT_R8G8_SSCALED: result = 2; break;
+  case VK_FORMAT_R8G8_UINT: result = 2; break;
+  case VK_FORMAT_R8G8_SINT: result = 2; break;
+  case VK_FORMAT_R8G8_SRGB: result = 2; break;
+  case VK_FORMAT_R8G8B8_UNORM: result = 3; break;
+  case VK_FORMAT_R8G8B8_SNORM: result = 3; break;
+  case VK_FORMAT_R8G8B8_USCALED: result = 3; break;
+  case VK_FORMAT_R8G8B8_SSCALED: result = 3; break;
+  case VK_FORMAT_R8G8B8_UINT: result = 3; break;
+  case VK_FORMAT_R8G8B8_SINT: result = 3; break;
+  case VK_FORMAT_R8G8B8_SRGB: result = 3; break;
+  case VK_FORMAT_B8G8R8_UNORM: result = 3; break;
+  case VK_FORMAT_B8G8R8_SNORM: result = 3; break;
+  case VK_FORMAT_B8G8R8_USCALED: result = 3; break;
+  case VK_FORMAT_B8G8R8_SSCALED: result = 3; break;
+  case VK_FORMAT_B8G8R8_UINT: result = 3; break;
+  case VK_FORMAT_B8G8R8_SINT: result = 3; break;
+  case VK_FORMAT_B8G8R8_SRGB: result = 3; break;
+  case VK_FORMAT_R8G8B8A8_UNORM: result = 4; break;
+  case VK_FORMAT_R8G8B8A8_SNORM: result = 4; break;
+  case VK_FORMAT_R8G8B8A8_USCALED: result = 4; break;
+  case VK_FORMAT_R8G8B8A8_SSCALED: result = 4; break;
+  case VK_FORMAT_R8G8B8A8_UINT: result = 4; break;
+  case VK_FORMAT_R8G8B8A8_SINT: result = 4; break;
+  case VK_FORMAT_R8G8B8A8_SRGB: result = 4; break;
+  case VK_FORMAT_B8G8R8A8_UNORM: result = 4; break;
+  case VK_FORMAT_B8G8R8A8_SNORM: result = 4; break;
+  case VK_FORMAT_B8G8R8A8_USCALED: result = 4; break;
+  case VK_FORMAT_B8G8R8A8_SSCALED: result = 4; break;
+  case VK_FORMAT_B8G8R8A8_UINT: result = 4; break;
+  case VK_FORMAT_B8G8R8A8_SINT: result = 4; break;
+  case VK_FORMAT_B8G8R8A8_SRGB: result = 4; break;
+  case VK_FORMAT_A8B8G8R8_UNORM_PACK32: result = 4; break;
+  case VK_FORMAT_A8B8G8R8_SNORM_PACK32: result = 4; break;
+  case VK_FORMAT_A8B8G8R8_USCALED_PACK32: result = 4; break;
+  case VK_FORMAT_A8B8G8R8_SSCALED_PACK32: result = 4; break;
+  case VK_FORMAT_A8B8G8R8_UINT_PACK32: result = 4; break;
+  case VK_FORMAT_A8B8G8R8_SINT_PACK32: result = 4; break;
+  case VK_FORMAT_A8B8G8R8_SRGB_PACK32: result = 4; break;
+  case VK_FORMAT_A2R10G10B10_UNORM_PACK32: result = 4; break;
+  case VK_FORMAT_A2R10G10B10_SNORM_PACK32: result = 4; break;
+  case VK_FORMAT_A2R10G10B10_USCALED_PACK32: result = 4; break;
+  case VK_FORMAT_A2R10G10B10_SSCALED_PACK32: result = 4; break;
+  case VK_FORMAT_A2R10G10B10_UINT_PACK32: result = 4; break;
+  case VK_FORMAT_A2R10G10B10_SINT_PACK32: result = 4; break;
+  case VK_FORMAT_A2B10G10R10_UNORM_PACK32: result = 4; break;
+  case VK_FORMAT_A2B10G10R10_SNORM_PACK32: result = 4; break;
+  case VK_FORMAT_A2B10G10R10_USCALED_PACK32: result = 4; break;
+  case VK_FORMAT_A2B10G10R10_SSCALED_PACK32: result = 4; break;
+  case VK_FORMAT_A2B10G10R10_UINT_PACK32: result = 4; break;
+  case VK_FORMAT_A2B10G10R10_SINT_PACK32: result = 4; break;
+  case VK_FORMAT_R16_UNORM: result = 2; break;
+  case VK_FORMAT_R16_SNORM: result = 2; break;
+  case VK_FORMAT_R16_USCALED: result = 2; break;
+  case VK_FORMAT_R16_SSCALED: result = 2; break;
+  case VK_FORMAT_R16_UINT: result = 2; break;
+  case VK_FORMAT_R16_SINT: result = 2; break;
+  case VK_FORMAT_R16_SFLOAT: result = 2; break;
+  case VK_FORMAT_R16G16_UNORM: result = 4; break;
+  case VK_FORMAT_R16G16_SNORM: result = 4; break;
+  case VK_FORMAT_R16G16_USCALED: result = 4; break;
+  case VK_FORMAT_R16G16_SSCALED: result = 4; break;
+  case VK_FORMAT_R16G16_UINT: result = 4; break;
+  case VK_FORMAT_R16G16_SINT: result = 4; break;
+  case VK_FORMAT_R16G16_SFLOAT: result = 4; break;
+  case VK_FORMAT_R16G16B16_UNORM: result = 6; break;
+  case VK_FORMAT_R16G16B16_SNORM: result = 6; break;
+  case VK_FORMAT_R16G16B16_USCALED: result = 6; break;
+  case VK_FORMAT_R16G16B16_SSCALED: result = 6; break;
+  case VK_FORMAT_R16G16B16_UINT: result = 6; break;
+  case VK_FORMAT_R16G16B16_SINT: result = 6; break;
+  case VK_FORMAT_R16G16B16_SFLOAT: result = 6; break;
+  case VK_FORMAT_R16G16B16A16_UNORM: result = 8; break;
+  case VK_FORMAT_R16G16B16A16_SNORM: result = 8; break;
+  case VK_FORMAT_R16G16B16A16_USCALED: result = 8; break;
+  case VK_FORMAT_R16G16B16A16_SSCALED: result = 8; break;
+  case VK_FORMAT_R16G16B16A16_UINT: result = 8; break;
+  case VK_FORMAT_R16G16B16A16_SINT: result = 8; break;
+  case VK_FORMAT_R16G16B16A16_SFLOAT: result = 8; break;
+  case VK_FORMAT_R32_UINT: result = 4; break;
+  case VK_FORMAT_R32_SINT: result = 4; break;
+  case VK_FORMAT_R32_SFLOAT: result = 4; break;
+  case VK_FORMAT_R32G32_UINT: result = 8; break;
+  case VK_FORMAT_R32G32_SINT: result = 8; break;
+  case VK_FORMAT_R32G32_SFLOAT: result = 8; break;
+  case VK_FORMAT_R32G32B32_UINT: result = 12; break;
+  case VK_FORMAT_R32G32B32_SINT: result = 12; break;
+  case VK_FORMAT_R32G32B32_SFLOAT: result = 12; break;
+  case VK_FORMAT_R32G32B32A32_UINT: result = 16; break;
+  case VK_FORMAT_R32G32B32A32_SINT: result = 16; break;
+  case VK_FORMAT_R32G32B32A32_SFLOAT: result = 16; break;
+  case VK_FORMAT_R64_UINT: result = 8; break;
+  case VK_FORMAT_R64_SINT: result = 8; break;
+  case VK_FORMAT_R64_SFLOAT: result = 8; break;
+  case VK_FORMAT_R64G64_UINT: result = 16; break;
+  case VK_FORMAT_R64G64_SINT: result = 16; break;
+  case VK_FORMAT_R64G64_SFLOAT: result = 16; break;
+  case VK_FORMAT_R64G64B64_UINT: result = 24; break;
+  case VK_FORMAT_R64G64B64_SINT: result = 24; break;
+  case VK_FORMAT_R64G64B64_SFLOAT: result = 24; break;
+  case VK_FORMAT_R64G64B64A64_UINT: result = 32; break;
+  case VK_FORMAT_R64G64B64A64_SINT: result = 32; break;
+  case VK_FORMAT_R64G64B64A64_SFLOAT: result = 32; break;
+  case VK_FORMAT_B10G11R11_UFLOAT_PACK32: result = 4; break;
+  case VK_FORMAT_E5B9G9R9_UFLOAT_PACK32: result = 4; break;
 
+  default:
+    break;
+  }
+  return result;
+}
+
+struct VertexInputDescription {
+
+	std::vector<VkVertexInputBindingDescription> bindings;
+	std::vector<VkVertexInputAttributeDescription> attributes;
+};
+
+struct idShaderProgram {
+    //we only have vertex and fragment stages
+    VkShaderModule module[2];
+    SpvReflectShaderModule spvModule[2];
+
+    void Destroy( void ) {
+        for(auto& current : module) {
+            vkDestroyShaderModule(vkdevice->GetGlobalDevice(), current, nullptr);
+        }
+        for(auto& current: spvModule) {
+            spvReflectDestroyShaderModule(&current);
+        }
+    }
+};
 
 class idPipelineBuilderLocal : public idPipelineBuilder {
 public:
-	virtual idPipeline BuildGraphicsPipeline(std::vector<const char*> files, std::vector<VkShaderStageFlagBits> shaderStageFlags);
+	virtual bool BuildGraphicsPipeline(std::vector<const char*> files, std::vector<VkShaderStageFlagBits> shaderStageFlags, idPipeline& idpipeline);
 private:
-    VkShaderModule LoadShaderModule(const char* shaderFile);
+    bool LoadShaderModule(std::vector<const char*> shaderFiles, idShaderProgram& program);
 };
 
 idPipelineBuilderLocal pipelinebuilderLocal;
 idPipelineBuilder* pipelinebuilder = &pipelinebuilderLocal;
 
-VkShaderModule idPipelineBuilderLocal::LoadShaderModule(const char* shaderFile) {
+bool idPipelineBuilderLocal::LoadShaderModule(std::vector<const char*> shaderFiles, idShaderProgram& program) {
 
     //open the file. With cursor at the end
-	std::ifstream file(shaderFile, std::ios::ate | std::ios::binary);
+    for(int i = 0; i < shaderFiles.size(); i++) {
 
-	if (!file.is_open()) {
-		return VK_NULL_HANDLE;
-	}
+    
+        std::ifstream file(shaderFiles[i], std::ios::ate | std::ios::binary);
 
-
-    //find what the size of the file is by looking up the location of the cursor
-    //because the cursor is at the end, it gives the size directly in bytes
-    size_t fileSize = (size_t)file.tellg();
-
-    //spirv expects the buffer to be on uint32, so make sure to reserve an int vector big enough for the entire file
-    std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
-
-    //put file cursor at beginning
-    file.seekg(0);
-
-    //load the entire file into the buffer
-    file.read((char*)buffer.data(), fileSize);
-
-    //now that the file is loaded into the buffer, we can close it
-    file.close();
+        if (!file.is_open()) {
+            common->Error("failed to load a shader");
+            return false;
+        }
 
 
-    //create a new shader module, using the buffer we loaded
-    VkShaderModuleCreateInfo createInfo = {};
-    createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
-    createInfo.pNext = nullptr;
+        //find what the size of the file is by looking up the location of the cursor
+        //because the cursor is at the end, it gives the size directly in bytes
+        size_t fileSize = (size_t)file.tellg();
 
-    //codeSize has to be in bytes, so multiply the ints in the buffer by size of int to know the real size of the buffer
-    createInfo.codeSize = buffer.size() * sizeof(uint32_t);
-    createInfo.pCode = buffer.data();
+        //spirv expects the buffer to be on uint32, so make sure to reserve an int vector big enough for the entire file
+        std::vector<uint32_t> buffer(fileSize / sizeof(uint32_t));
 
-    //check that the creation goes well.
-    VkShaderModule module;
-    if (vkCreateShaderModule(vkdevice->GetGlobalDevice(), &createInfo, nullptr, &module) != VK_SUCCESS) {
-        return VK_NULL_HANDLE;
+        //put file cursor at beginning
+        file.seekg(0);
+
+        //load the entire file into the buffer
+        file.read((char*)buffer.data(), fileSize);
+
+        //now that the file is loaded into the buffer, we can close it
+        file.close();
+
+
+        //create a new shader module, using the buffer we loaded
+        VkShaderModuleCreateInfo createInfo = {};
+        createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
+        createInfo.pNext = nullptr;
+
+        //codeSize has to be in bytes, so multiply the ints in the buffer by size of int to know the real size of the buffer
+        createInfo.codeSize = buffer.size() * sizeof(uint32_t);
+        createInfo.pCode = buffer.data();
+
+        if(spvReflectCreateShaderModule(fileSize, buffer.data(), &program.spvModule[i]) != SPV_REFLECT_RESULT_SUCCESS){
+            common->Error("failed to load spirv reflect modules");
+        }
+
+        //check that the creation goes well.
+        if (vkCreateShaderModule(vkdevice->GetGlobalDevice(), &createInfo, nullptr, &program.module[i]) != VK_SUCCESS) {
+            common->Error("failed to create shader module");
+        }
     }
-    return module;
+    return true;
+}
+
+
+VertexInputDescription GetVertexDescription(std::vector<SpvReflectInterfaceVariable*> inputVars)
+{
+    //we will have just 1 vertex buffer binding, with a per-vertex rate
+	VkVertexInputBindingDescription description = {};
+	description.binding = 0;
+	description.stride = 0;
+	description.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+
+    std::vector<VkVertexInputAttributeDescription> attributeDescriptions;
+	for(int i=0; i < inputVars.size(); i++) {
+        const SpvReflectInterfaceVariable& refl_var = *(inputVars[i]);
+        if (refl_var.decoration_flags & SPV_REFLECT_DECORATION_BUILT_IN) { 
+            continue;
+        }
+        VkVertexInputAttributeDescription attribute = {};
+        attribute.binding = description.binding;
+        attribute.location = refl_var.location;
+        attribute.format = static_cast<VkFormat>(inputVars[i]->format);
+        attribute.offset = 0;
+        attributeDescriptions.push_back(attribute);
+    }
+
+    std::sort(attributeDescriptions.begin(), attributeDescriptions.end(),[](const VkVertexInputAttributeDescription& a, const VkVertexInputAttributeDescription& b) {
+        return a.location < b.location;
+    });
+
+    for (auto& attribute : attributeDescriptions) {
+      uint32_t formatSize = FormatSize(attribute.format);
+      attribute.offset = description.stride;
+      description.stride += formatSize;
+    }
+
+    VertexInputDescription outDescription = {};
+    outDescription.attributes = attributeDescriptions;
+    outDescription.bindings.push_back(description);
+
+    return outDescription;
 }
 
 
@@ -164,34 +371,57 @@ VkPipelineColorBlendAttachmentState ColorBlendAttachmentState() {
 
 
 
-idPipeline idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char *> files, std::vector<VkShaderStageFlagBits> shaderStageFlags) {
-    idPipeline idPipeline;
+bool idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char *> files, std::vector<VkShaderStageFlagBits> shaderStageFlags, idPipeline& idpipeline) {
+    if (idpipeline.pipeline != VK_NULL_HANDLE) {
+        return true;
+    }
     std::vector<VkPipelineShaderStageCreateInfo> shaderStages;
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo;
 	VkPipelineInputAssemblyStateCreateInfo inputAssembly;
 	VkPipelineRasterizationStateCreateInfo rasterizer;
 	VkPipelineColorBlendAttachmentState colorBlendAttachment;
 	VkPipelineMultisampleStateCreateInfo multisampling;
-
+    idShaderProgram program;
     // layout and shader modules creation
-    std::vector<VkShaderModule> shaderModules;
-    for(int i = 0; i < files.size(); i++) {
-        shaderModules.push_back(LoadShaderModule(files[i]));
-    }
+    LoadShaderModule(files, program);
 
     //build the pipeline layout that controls the inputs/outputs of the shader
 	//we are not using descriptor sets or other systems yet, so no need to use anything other than empty default
 	VkPipelineLayoutCreateInfo PipelineLayoutInfo = PipelineLayoutCreateInfo();
 
-	ID_VK_CHECK_RESULT(vkCreatePipelineLayout(vkdevice->GetGlobalDevice(), &PipelineLayoutInfo, nullptr, &idPipeline.pipelineLayout));
+	ID_VK_CHECK_RESULT(vkCreatePipelineLayout(vkdevice->GetGlobalDevice(), &PipelineLayoutInfo, nullptr, &idpipeline.pipelineLayout));
 
 	//build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
-
     for(int i = 0; i < shaderStageFlags.size(); i++) {
-        shaderStages.push_back(PipelineShaderStageCreateInfo(shaderStageFlags[i],shaderModules[i]));
+        shaderStages.push_back(PipelineShaderStageCreateInfo(shaderStageFlags[i],program.module[i]));
     }
 	//vertex input controls how to read vertices from vertex buffers. We aren't using it yet
 	vertexInputInfo = VertexInputStateCreateInfo();
+
+    VertexInputDescription vertexDescription = {};
+    for(auto& currentModule: program.spvModule) {
+        if (currentModule.shader_stage == static_cast<VkShaderStageFlags>(VK_SHADER_STAGE_VERTEX_BIT)) {
+            // Enumerate and extract shader's input variables
+            uint32_t varCount = 0;
+            SpvReflectResult result = spvReflectEnumerateInputVariables(&currentModule, &varCount, nullptr);
+            assert(result == SPV_REFLECT_RESULT_SUCCESS);
+            std::vector<SpvReflectInterfaceVariable*> inputVars(varCount);
+            result = spvReflectEnumerateInputVariables(&currentModule, &varCount, inputVars.data());
+            assert(result == SPV_REFLECT_RESULT_SUCCESS);
+            for(auto& inputVar: inputVars ) {
+                // ignore built-in variables
+                if (inputVar->decoration_flags & SPV_REFLECT_DECORATION_BUILT_IN) { 
+                    vertexDescription = GetVertexDescription(inputVars);
+                    vertexInputInfo.pVertexAttributeDescriptions = vertexDescription.attributes.data();
+                    vertexInputInfo.vertexAttributeDescriptionCount = vertexDescription.attributes.size();
+                    vertexInputInfo.pVertexBindingDescriptions = vertexDescription.bindings.data(); 
+                    vertexInputInfo.vertexBindingDescriptionCount = vertexDescription.bindings.size();
+                    break;
+                }
+            } 
+        }
+        break;
+    }
 
 	//input assembly is the configuration for drawing triangle lists, strips, or individual points.
 	//we are just going to draw triangle list
@@ -213,9 +443,9 @@ idPipeline idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char 
     viewportState.pNext = nullptr;
 
     viewportState.viewportCount = 1;
-    viewportState.pViewports = &idPipeline.viewport;
+    viewportState.pViewports = &idpipeline.viewport;
     viewportState.scissorCount = 1;
-    viewportState.pScissors = &idPipeline.scissor;
+    viewportState.pScissors = &idpipeline.scissor;
 
     //setup dummy color blending. We aren't using transparent objects yet
     //the blending is just "no blend", but we do write to the color attachment
@@ -261,7 +491,7 @@ idPipeline idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char 
 	pipelineInfo.pRasterizationState = &rasterizer;
 	pipelineInfo.pMultisampleState = &multisampling;
 	pipelineInfo.pColorBlendState = &colorBlending;
-	pipelineInfo.layout = idPipeline.pipelineLayout;
+	pipelineInfo.layout = idpipeline.pipelineLayout;
     pipelineInfo.pDynamicState = &dStateInfo;
 	pipelineInfo.renderPass = VK_NULL_HANDLE;
 	pipelineInfo.subpass = 0;
@@ -269,14 +499,12 @@ idPipeline idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char 
     pipelineInfo.pNext = &pipelineRenderingCreateInfo;
 
 	//it's easy to error out on create graphics pipeline, so we handle it a bit better than the common VK_CHECK case
-	if (vkCreateGraphicsPipelines(vkdevice->GetGlobalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &idPipeline.pipeline) == VK_SUCCESS) {
-        for(auto& shaderModule : shaderModules) {
-            vkDestroyShaderModule(vkdevice->GetGlobalDevice(), shaderModule, nullptr);
-        }
-		return idPipeline;
+	if (vkCreateGraphicsPipelines(vkdevice->GetGlobalDevice(), VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &idpipeline.pipeline) == VK_SUCCESS) {
+        program.Destroy();
+		return true;
 	}
     common->Error("failed to create a graphics pipeline");
-    return idPipeline;
+    return false;
 }
 
 

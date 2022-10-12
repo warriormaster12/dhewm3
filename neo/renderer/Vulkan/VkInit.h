@@ -39,7 +39,7 @@ PipelineBuilder
 ===============
 */
 struct idPipeline {
-	VkPipeline pipeline;
+	VkPipeline pipeline = VK_NULL_HANDLE;
 	VkViewport viewport;
 	VkRect2D scissor;
 	VkPipelineLayout pipelineLayout;
@@ -49,7 +49,7 @@ struct idPipeline {
 
 class idPipelineBuilder {
 public:
-	virtual idPipeline BuildGraphicsPipeline(std::vector<const char*> files, std::vector<VkShaderStageFlagBits> shaderStageFlags) = 0;
+	virtual bool BuildGraphicsPipeline(std::vector<const char*> files, std::vector<VkShaderStageFlagBits> shaderStageFlags, idPipeline& idpipeline) = 0;
 };
 
 extern idPipelineBuilder* 	pipelinebuilder;
