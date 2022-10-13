@@ -2,6 +2,7 @@
 #include "VkTools.h"
 
 #include "idlib/math/Vector.h"
+#include <vector>
 
 class idVulkanRBELocal : public idVulkanRBE {
 public: 
@@ -20,14 +21,19 @@ idVulkanRBE* vkrbe = &vkrbeLocal;
 
 idPipeline testPipeline;
 
-idVkTools::AllocatedBuffer vertexBuffer;
-
-bool doOnce = true;
-
 struct Vertex {
     idVec3 position;
     idVec3 color;
 };
+
+
+idVkTools::AllocatedBuffer vertexBuffer;
+idVkTools::AllocatedBuffer indexBuffer;
+std::vector<Vertex> vertices;
+std::vector<uint32_t> indicies;
+
+bool doOnce = true;
+
 
 
 void idVulkanRBELocal::PrepareFrame( void ){
@@ -100,7 +106,7 @@ void idVulkanRBELocal::BeginRenderLayer( void ) {
     colorAttachment.imageLayout = VK_IMAGE_LAYOUT_ATTACHMENT_OPTIMAL_KHR;
     colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
     colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-    colorAttachment.clearValue.color = { 0.0f, 1.0f, 0.0f,1.0f };
+    colorAttachment.clearValue.color = { 0.0f, 0.0f, 0.0f,1.0f };
 
     // A single depth stencil attachment info can be used, but they can also be specified separately.
     // When both are specified separately, the only requirement is that the image view is identical.			
@@ -126,19 +132,24 @@ void idVulkanRBELocal::BeginRenderLayer( void ) {
     }
 
     if(doOnce) {
-        std::vector<Vertex> vertices;
-        vertices.resize(3);
+        vertices.resize(4);
+        indicies = {0, 1, 2, 2, 3, 0};
         //vertex positions
-        vertices[0].position.Set(1.f, 1.f, 0.0f );
-        vertices[1].position.Set(-1.f, 1.f, 0.0f );
-        vertices[2].position.Set(0.f,-1.f, 0.0f);
+        vertices[0].position.Set(-0.5f, -0.5f, 0.0f );
+        vertices[1].position.Set(0.5f, -0.5f, 0.0f );
+        vertices[2].position.Set(0.5f,0.5f, 0.0f);
+        vertices[3].position.Set(-0.5f,0.5f, 0.0f);
 
         //vertex colors, all green
         vertices[0].color.Set(1.f,0.f, 0.0f); //pure red
         vertices[1].color.Set(0.f,1.f, 0.0f); //pure green
         vertices[2].color.Set(0.f,0.f, 1.0f); //pure blue
+        vertices[3].color.Set(1.f,1.f, 1.0f); //pure blue
+
         vertexBuffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
         vertexBuffer.AllocateBuffer(vertices.data(),vertices.size(), sizeof(Vertex));
+        indexBuffer.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
+        indexBuffer.AllocateBuffer(indicies.data(), indicies.size(), sizeof(uint32_t));
         doOnce = false;
     }
 
@@ -166,7 +177,13 @@ void idVulkanRBELocal::BeginRenderLayer( void ) {
         vkCmdBindVertexBuffers(currentFrame.commandBuffer, 0, 1, &vertexBuffer.buffer, &offset);
 
         vkCmdBindPipeline(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, testPipeline.pipeline);
-        vkCmdDraw(currentFrame.commandBuffer, 3, 1, 0, 0);
+        if(indicies.size() > 0) {
+            vkCmdBindIndexBuffer(currentFrame.commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
+            vkCmdDrawIndexed(currentFrame.commandBuffer, indicies.size(), 1, 0, 0, 0);
+        }
+        else {
+            vkCmdDraw(currentFrame.commandBuffer, vertices.size(), 1, 0, 0);
+        }
     }
 }
 
@@ -243,4 +260,5 @@ void idVulkanRBELocal::SubmitFrame( void ) {
 void idVulkanRBELocal::CleanUp() {
     testPipeline.DestroyPipeline();
     vertexBuffer.DestroyBuffer(vkdevice->GetGlobalMemoryAllocator());
+    indexBuffer.DestroyBuffer(vkdevice->GetGlobalMemoryAllocator());
 }
