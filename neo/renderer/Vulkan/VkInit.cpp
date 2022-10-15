@@ -281,42 +281,42 @@ void idVulkanDeviceLocal::Init( void ){
     common->Printf("Vulkan Device created\n");
 
     //we need to provide instance and device address so that vma library could work properly with volk
-    VmaVulkanFunctions volk_functions = {};
-    volk_functions.vkGetDeviceProcAddr = (PFN_vkGetDeviceProcAddr)vkGetDeviceProcAddr;
-    volk_functions.vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)vkGetInstanceProcAddr;
-    volk_functions.vkGetPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)vkGetPhysicalDeviceProperties;
-    volk_functions.vkGetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)vkGetPhysicalDeviceMemoryProperties;
-    volk_functions.vkAllocateMemory = (PFN_vkAllocateMemory)vkAllocateMemory;
-    volk_functions.vkFreeMemory = (PFN_vkFreeMemory)vkFreeMemory;
-    volk_functions.vkMapMemory = (PFN_vkMapMemory)vkMapMemory;
-    volk_functions.vkUnmapMemory = (PFN_vkUnmapMemory)vkUnmapMemory;
-    volk_functions.vkGetDeviceBufferMemoryRequirements = (PFN_vkGetDeviceBufferMemoryRequirements)vkGetDeviceBufferMemoryRequirements;
-    volk_functions.vkGetDeviceImageMemoryRequirements = (PFN_vkGetDeviceImageMemoryRequirements)vkGetDeviceImageMemoryRequirements;
-    volk_functions.vkFlushMappedMemoryRanges = (PFN_vkFlushMappedMemoryRanges)vkFlushMappedMemoryRanges;
-    volk_functions.vkInvalidateMappedMemoryRanges = (PFN_vkInvalidateMappedMemoryRanges)vkInvalidateMappedMemoryRanges;
-    volk_functions.vkBindBufferMemory = (PFN_vkBindBufferMemory)vkBindBufferMemory;
-    volk_functions.vkBindImageMemory = (PFN_vkBindImageMemory)vkBindImageMemory;
-    volk_functions.vkGetBufferMemoryRequirements = (PFN_vkGetBufferMemoryRequirements)vkGetBufferMemoryRequirements;
-    volk_functions.vkGetImageMemoryRequirements = (PFN_vkGetImageMemoryRequirements)vkGetImageMemoryRequirements;
-    volk_functions.vkCreateBuffer = (PFN_vkCreateBuffer)vkCreateBuffer;
-    volk_functions.vkCreateImage = (PFN_vkCreateImage)vkCreateImage;
-    volk_functions.vkDestroyBuffer = (PFN_vkDestroyBuffer)vkDestroyBuffer;
-    volk_functions.vkDestroyImage = (PFN_vkDestroyImage)vkDestroyImage;
-    volk_functions.vkCmdCopyBuffer = (PFN_vkCmdCopyBuffer)vkCmdCopyBuffer;
-    volk_functions.vkGetBufferMemoryRequirements2KHR = (PFN_vkGetBufferMemoryRequirements2KHR)vkGetBufferMemoryRequirements2KHR;
-    volk_functions.vkGetImageMemoryRequirements2KHR = (PFN_vkGetImageMemoryRequirements2KHR)vkGetImageMemoryRequirements2KHR;
-    volk_functions.vkBindBufferMemory2KHR = (PFN_vkBindBufferMemory2KHR)vkBindBufferMemory2KHR;
-    volk_functions.vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkBindImageMemory2KHR;
-    volk_functions.vkGetPhysicalDeviceMemoryProperties2KHR = (PFN_vkGetPhysicalDeviceMemoryProperties2KHR)vkGetPhysicalDeviceMemoryProperties2KHR;
-    volk_functions.vkGetDeviceBufferMemoryRequirements = (PFN_vkGetDeviceBufferMemoryRequirements)vkGetDeviceBufferMemoryRequirements;
-    volk_functions.vkGetDeviceImageMemoryRequirements = (PFN_vkGetDeviceImageMemoryRequirements)vkGetDeviceImageMemoryRequirements;
+    VmaVulkanFunctions volkFunctions = {};
+    volkFunctions.vkGetDeviceProcAddr = (PFN_vkGetDeviceProcAddr)vkGetDeviceProcAddr;
+    volkFunctions.vkGetInstanceProcAddr = (PFN_vkGetInstanceProcAddr)vkGetInstanceProcAddr;
+    volkFunctions.vkGetPhysicalDeviceProperties = (PFN_vkGetPhysicalDeviceProperties)vkGetPhysicalDeviceProperties;
+    volkFunctions.vkGetPhysicalDeviceMemoryProperties = (PFN_vkGetPhysicalDeviceMemoryProperties)vkGetPhysicalDeviceMemoryProperties;
+    volkFunctions.vkAllocateMemory = (PFN_vkAllocateMemory)vkAllocateMemory;
+    volkFunctions.vkFreeMemory = (PFN_vkFreeMemory)vkFreeMemory;
+    volkFunctions.vkMapMemory = (PFN_vkMapMemory)vkMapMemory;
+    volkFunctions.vkUnmapMemory = (PFN_vkUnmapMemory)vkUnmapMemory;
+    volkFunctions.vkGetDeviceBufferMemoryRequirements = (PFN_vkGetDeviceBufferMemoryRequirements)vkGetDeviceBufferMemoryRequirements;
+    volkFunctions.vkGetDeviceImageMemoryRequirements = (PFN_vkGetDeviceImageMemoryRequirements)vkGetDeviceImageMemoryRequirements;
+    volkFunctions.vkFlushMappedMemoryRanges = (PFN_vkFlushMappedMemoryRanges)vkFlushMappedMemoryRanges;
+    volkFunctions.vkInvalidateMappedMemoryRanges = (PFN_vkInvalidateMappedMemoryRanges)vkInvalidateMappedMemoryRanges;
+    volkFunctions.vkBindBufferMemory = (PFN_vkBindBufferMemory)vkBindBufferMemory;
+    volkFunctions.vkBindImageMemory = (PFN_vkBindImageMemory)vkBindImageMemory;
+    volkFunctions.vkGetBufferMemoryRequirements = (PFN_vkGetBufferMemoryRequirements)vkGetBufferMemoryRequirements;
+    volkFunctions.vkGetImageMemoryRequirements = (PFN_vkGetImageMemoryRequirements)vkGetImageMemoryRequirements;
+    volkFunctions.vkCreateBuffer = (PFN_vkCreateBuffer)vkCreateBuffer;
+    volkFunctions.vkCreateImage = (PFN_vkCreateImage)vkCreateImage;
+    volkFunctions.vkDestroyBuffer = (PFN_vkDestroyBuffer)vkDestroyBuffer;
+    volkFunctions.vkDestroyImage = (PFN_vkDestroyImage)vkDestroyImage;
+    volkFunctions.vkCmdCopyBuffer = (PFN_vkCmdCopyBuffer)vkCmdCopyBuffer;
+    volkFunctions.vkGetBufferMemoryRequirements2KHR = (PFN_vkGetBufferMemoryRequirements2KHR)vkGetBufferMemoryRequirements2KHR;
+    volkFunctions.vkGetImageMemoryRequirements2KHR = (PFN_vkGetImageMemoryRequirements2KHR)vkGetImageMemoryRequirements2KHR;
+    volkFunctions.vkBindBufferMemory2KHR = (PFN_vkBindBufferMemory2KHR)vkBindBufferMemory2KHR;
+    volkFunctions.vkBindImageMemory2KHR = (PFN_vkBindImageMemory2KHR)vkBindImageMemory2KHR;
+    volkFunctions.vkGetPhysicalDeviceMemoryProperties2KHR = (PFN_vkGetPhysicalDeviceMemoryProperties2KHR)vkGetPhysicalDeviceMemoryProperties2KHR;
+    volkFunctions.vkGetDeviceBufferMemoryRequirements = (PFN_vkGetDeviceBufferMemoryRequirements)vkGetDeviceBufferMemoryRequirements;
+    volkFunctions.vkGetDeviceImageMemoryRequirements = (PFN_vkGetDeviceImageMemoryRequirements)vkGetDeviceImageMemoryRequirements;
 
     //initialize the memory allocator
     VmaAllocatorCreateInfo allocatorInfo = {};
     allocatorInfo.physicalDevice = physicalDevice;
     allocatorInfo.device = device;
     allocatorInfo.instance = instance;
-    allocatorInfo.pVulkanFunctions = &volk_functions;
+    allocatorInfo.pVulkanFunctions = &volkFunctions;
     vmaCreateAllocator(&allocatorInfo, &allocator);
 
     common->Printf("Vulkan Memory Allocator created");
@@ -384,7 +384,7 @@ void idVulkanDeviceLocal::Shutdown( void ) {
     }
     
 
-    depthImage.DestroyImage( device, allocator );
+    depthImage.DestroyImage();
     for (int i = 0; i < swapchainImageViews.size(); i++)
     {
         vkDestroyImageView(device,  swapchainImageViews[i], nullptr);

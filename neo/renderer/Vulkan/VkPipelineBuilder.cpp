@@ -7,6 +7,8 @@
 #include <cstddef>
 #include <fstream>
 #include <algorithm>
+#include <unordered_map>
+#include <array>
 
 static uint32_t FormatSize(VkFormat format)
 {
@@ -143,16 +145,26 @@ static uint32_t FormatSize(VkFormat format)
   return result;
 }
 
+
+
 struct VertexInputDescription {
 
 	std::vector<VkVertexInputBindingDescription> bindings;
 	std::vector<VkVertexInputAttributeDescription> attributes;
 };
 
+struct DescriptorSetLayoutData {
+  uint32_t setNumber;
+  VkDescriptorSetLayoutCreateInfo createInfo = {};
+  std::vector<VkDescriptorSetLayoutBinding> bindings;
+};
+
 struct idShaderProgram {
     //we only have vertex and fragment stages
-    VkShaderModule module[2];
-    SpvReflectShaderModule spvModule[2];
+    std::array<VkShaderModule,2> module;
+    std::array<SpvReflectShaderModule,2> spvModule;
+
+    std::vector<VkDescriptorSetLayout> GenerateDescriptorLayouts( void );
 
     void Destroy( void ) {
         for(auto& current : module) {
@@ -391,7 +403,12 @@ bool idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char *> fil
     //build the pipeline layout that controls the inputs/outputs of the shader
 	//we are not using descriptor sets or other systems yet, so no need to use anything other than empty default
 	VkPipelineLayoutCreateInfo PipelineLayoutInfo = PipelineLayoutCreateInfo();
-
+    std::vector<VkDescriptorSetLayout> descriptorLayouts = program.GenerateDescriptorLayouts();
+    if (descriptorLayouts.size() > 0) {
+        PipelineLayoutInfo.pSetLayouts = descriptorLayouts.data();
+        PipelineLayoutInfo.setLayoutCount = descriptorLayouts.size();
+    }
+    
 	ID_VK_CHECK_RESULT(vkCreatePipelineLayout(vkdevice->GetGlobalDevice(), &PipelineLayoutInfo, nullptr, &idpipeline.pipelineLayout));
 
 	//build the stage-create-info for both vertex and fragment stages. This lets the pipeline know the shader modules per stage
@@ -511,4 +528,220 @@ bool idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char *> fil
 void idPipeline::DestroyPipeline() {
     vkDestroyPipelineLayout(vkdevice->GetGlobalDevice(), pipelineLayout, nullptr);
     vkDestroyPipeline(vkdevice->GetGlobalDevice(), pipeline, nullptr);
+}
+
+
+class DescriptorLayoutCacheLocal : public DescriptorLayoutCache {
+public: 
+    virtual VkDescriptorSetLayout CreateDescriptorLayout( VkDescriptorSetLayoutCreateInfo& info );
+    virtual void CleanUp( void );
+private:
+    struct DescriptorLayoutInfo {
+        //good idea to turn this into a inlined array
+        std::vector<VkDescriptorSetLayoutBinding> bindings;
+
+        bool operator==( const DescriptorLayoutInfo& other ) const;
+
+        size_t Hash() const;
+    };
+
+    struct DescriptorLayoutHash		{
+
+        std::size_t operator()(const DescriptorLayoutInfo& k) const{
+            return k.Hash();
+        }
+    };
+
+    std::unordered_map<DescriptorLayoutInfo, VkDescriptorSetLayout, DescriptorLayoutHash> layoutCache;
+};
+
+DescriptorLayoutCacheLocal layoutCacheLocal;
+DescriptorLayoutCache* descriptorLayoutCache = &layoutCacheLocal;
+
+
+VkDescriptorSetLayout DescriptorLayoutCacheLocal::CreateDescriptorLayout( VkDescriptorSetLayoutCreateInfo& info ){
+	DescriptorLayoutInfo layoutInfo;
+	layoutInfo.bindings.reserve(info.bindingCount);
+	bool isSorted = true;
+	int lastBinding = -1;
+
+	//copy from the direct info struct into our own one
+	for (int i = 0; i < info.bindingCount; i++) {
+		layoutInfo.bindings.push_back(info.pBindings[i]);
+
+		//check that the bindings are in strict increasing order
+		if (info.pBindings[i].binding > lastBinding){
+			lastBinding = info.pBindings[i].binding;
+		}
+		else{
+			isSorted = false;
+		}
+	}
+	//sort the bindings if they aren't in order
+	if (!isSorted){
+		std::sort(layoutInfo.bindings.begin(), layoutInfo.bindings.end(), [](VkDescriptorSetLayoutBinding& a, VkDescriptorSetLayoutBinding& b ){
+				return a.binding < b.binding;
+		});
+	}
+
+	//try to grab from cache
+	auto it = layoutCache.find(layoutInfo);
+	if (it != layoutCache.end()){
+		return (*it).second;
+	}
+	else {
+        //create a new one (not found)
+        VkDescriptorSetLayout layout;
+        vkCreateDescriptorSetLayout(vkdevice->GetGlobalDevice(), &info, nullptr, &layout);
+
+        //add to cache
+        layoutCache[layoutInfo] = layout;
+        return layout;
+    }
+}
+
+bool DescriptorLayoutCacheLocal::DescriptorLayoutInfo::operator==( const DescriptorLayoutInfo& other ) const{
+	if (other.bindings.size() != bindings.size()){
+		return false;
+	}
+	else {
+		//compare each of the bindings is the same. Bindings are sorted so they will match
+		for (int i = 0; i < bindings.size(); i++) {
+			if (other.bindings[i].binding != bindings[i].binding){
+				return false;
+			}
+			if (other.bindings[i].descriptorType != bindings[i].descriptorType){
+				return false;
+			}
+			if (other.bindings[i].descriptorCount != bindings[i].descriptorCount){
+				return false;
+			}
+			if (other.bindings[i].stageFlags != bindings[i].stageFlags){
+				return false;
+			}
+		}
+		return true;
+	}
+}
+
+size_t DescriptorLayoutCacheLocal::DescriptorLayoutInfo::Hash() const{
+    using std::size_t;
+    using std::hash;
+
+    size_t result = hash<size_t>()(bindings.size());
+
+    for (const VkDescriptorSetLayoutBinding& b : bindings)
+    {
+        //pack the binding data into a single int64. Not fully correct but it's ok
+        size_t binding_hash = b.binding | b.descriptorType << 8 | b.descriptorCount << 16 | b.stageFlags << 24;
+
+        //shuffle the packed binding data and xor it with the main hash
+        result ^= hash<size_t>()(binding_hash);
+    }
+
+    return result;
+}
+
+void DescriptorLayoutCacheLocal::CleanUp( void )
+{
+    //delete every descriptor layout held
+    for (auto pair : layoutCache)
+    {
+        vkDestroyDescriptorSetLayout(vkdevice->GetGlobalDevice(), pair.second, nullptr);
+    }
+}
+
+std::vector<VkDescriptorSetLayout> idShaderProgram::GenerateDescriptorLayouts( void ) {
+    std::vector<VkPipelineShaderStageCreateInfo> shader_stages = {};
+    std::vector<int> setNumbers;
+    std::vector<DescriptorSetLayoutData> descriptor_layouts = {};
+    for(auto& currentModule : spvModule) {
+        uint32_t count = 0;
+        SpvReflectResult result = spvReflectEnumerateDescriptorSets(&currentModule, &count, NULL);
+        assert(result == SPV_REFLECT_RESULT_SUCCESS);
+        std::vector<SpvReflectDescriptorSet*> sets(count);
+        result = spvReflectEnumerateDescriptorSets(&currentModule, &count, sets.data());
+        assert(result == SPV_REFLECT_RESULT_SUCCESS);
+
+        std::vector<DescriptorSetLayoutData> set_layouts(sets.size(), DescriptorSetLayoutData{});
+        for (size_t i_set = 0; i_set < sets.size(); ++i_set) {
+            const SpvReflectDescriptorSet& refl_set = *(sets[i_set]);
+            DescriptorSetLayoutData& layout = set_layouts[i_set];
+            layout.bindings.resize(refl_set.binding_count);
+            for (uint32_t i_binding = 0; i_binding < refl_set.binding_count; ++i_binding) {
+                const SpvReflectDescriptorBinding& refl_binding = *(refl_set.bindings[i_binding]);
+                VkDescriptorSetLayoutBinding& layout_binding = layout.bindings[i_binding];
+                layout_binding.binding = refl_binding.binding;
+                layout_binding.descriptorType = static_cast<VkDescriptorType>(refl_binding.descriptor_type);
+                layout_binding.descriptorCount = 1;
+                for (uint32_t i_dim = 0; i_dim < refl_binding.array.dims_count; ++i_dim) {
+                    layout_binding.descriptorCount *= refl_binding.array.dims[i_dim];
+                }
+                layout_binding.stageFlags = static_cast<VkShaderStageFlagBits>(currentModule.shader_stage);
+            }
+
+            setNumbers.push_back(refl_set.set);
+            layout.setNumber = refl_set.set;
+            layout.createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+            layout.createInfo.bindingCount = refl_set.binding_count;
+            layout.createInfo.pBindings = layout.bindings.data();
+            
+            descriptor_layouts.push_back(layout);
+        }
+    }
+    
+    std::sort(setNumbers.begin(), setNumbers.end());
+    std::vector<int>::iterator iterator;
+    iterator = std::unique(setNumbers.begin(), setNumbers.end());
+
+    setNumbers.resize(std::distance(setNumbers.begin(), iterator));
+
+    std::vector<DescriptorSetLayoutData> merged_layouts;
+    merged_layouts.resize(setNumbers.size());
+	std::vector<VkDescriptorSetLayout> layouts;
+	for (int i = 0; i < merged_layouts.size(); i++) {
+		DescriptorSetLayoutData &ly = merged_layouts[i];
+
+		ly.setNumber = i;
+
+		ly.createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+
+		std::unordered_map<int,VkDescriptorSetLayoutBinding> binds;
+		for (auto& s : descriptor_layouts) {
+			if (s.setNumber == i) {
+				for (auto& b : s.bindings)
+				{
+					auto it = binds.find(b.binding);
+					if (it == binds.end())
+					{
+						binds[b.binding] = b;
+						//ly.bindings.push_back(b);
+					}
+					else {
+						//merge flags
+						binds[b.binding].stageFlags |= b.stageFlags;
+					}
+					
+				}
+			}
+		}
+		for (auto [k, v] : binds)
+		{
+			ly.bindings.push_back(v);
+		}
+		//sort the bindings, for hash purposes
+		std::sort(ly.bindings.begin(), ly.bindings.end(), [](VkDescriptorSetLayoutBinding& a, VkDescriptorSetLayoutBinding& b) {			
+			return a.binding < b.binding;
+		});
+
+
+		ly.createInfo.bindingCount = (uint32_t)ly.bindings.size();
+		ly.createInfo.pBindings = ly.bindings.data();
+		ly.createInfo.flags = 0;
+		ly.createInfo.pNext = 0;
+		
+
+		layouts.push_back(layoutCacheLocal.CreateDescriptorLayout(ly.createInfo));
+	}
+    return layouts;
 }

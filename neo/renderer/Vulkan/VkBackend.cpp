@@ -8,7 +8,7 @@ class idVulkanRBELocal : public idVulkanRBE {
 public: 
     virtual void PrepareFrame( void );
     virtual void SubmitFrame( void );
-    virtual void BeginRenderLayer( void );
+    virtual void BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 );
     virtual void EndRenderLayer( void );
     virtual void CleanUp( void );
 private:
@@ -70,7 +70,7 @@ void idVulkanRBELocal::PrepareFrame( void ){
 	ID_VK_CHECK_RESULT(vkBeginCommandBuffer(currentFrame.commandBuffer, &cmdBeginInfo));
 }
 
-void idVulkanRBELocal::BeginRenderLayer( void ) {
+void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height /*= 0*/ ) {
     auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
     idVkTools::InsertImageMemoryBarrier(
         currentFrame.commandBuffer,
@@ -120,7 +120,12 @@ void idVulkanRBELocal::BeginRenderLayer( void ) {
 
     VkRenderingInfoKHR renderingInfo{};
     renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO_KHR;
-    renderingInfo.renderArea = { 0, 0, vkdevice->GetSwapchainExtent().width, vkdevice->GetSwapchainExtent().height };
+    if (width == 0.0 || height == 0.0) {
+        renderingInfo.renderArea = { 0, 0, vkdevice->GetSwapchainExtent().width, vkdevice->GetSwapchainExtent().height };
+    }
+    else {
+        renderingInfo.renderArea = { 0, 0, width, height };
+    }
     renderingInfo.layerCount = 1;
     renderingInfo.viewMask = 0;
     renderingInfo.colorAttachmentCount = 1;
@@ -146,10 +151,11 @@ void idVulkanRBELocal::BeginRenderLayer( void ) {
         vertices[2].color.Set(0.f,0.f, 1.0f); //pure blue
         vertices[3].color.Set(1.f,1.f, 1.0f); //pure blue
 
-        vertexBuffer.usage = VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
-        vertexBuffer.AllocateBuffer(vertices.data(),vertices.size(), sizeof(Vertex));
-        indexBuffer.usage = VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
-        indexBuffer.AllocateBuffer(indicies.data(), indicies.size(), sizeof(uint32_t));
+        
+        vertexBuffer.AllocateBuffer( VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,vertices.size(), sizeof(Vertex));
+        vertexBuffer.UploadBufferData(vertices.data());
+        indexBuffer.AllocateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indicies.size(), sizeof(uint32_t));
+        indexBuffer.UploadBufferData(indicies.data());
         doOnce = false;
     }
 
@@ -259,6 +265,6 @@ void idVulkanRBELocal::SubmitFrame( void ) {
 
 void idVulkanRBELocal::CleanUp() {
     testPipeline.DestroyPipeline();
-    vertexBuffer.DestroyBuffer(vkdevice->GetGlobalMemoryAllocator());
-    indexBuffer.DestroyBuffer(vkdevice->GetGlobalMemoryAllocator());
+    vertexBuffer.DestroyBuffer();
+    indexBuffer.DestroyBuffer();
 }

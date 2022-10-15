@@ -156,16 +156,27 @@ namespace idVkTools {
     }
 
 
-    void AllocatedBuffer::AllocateBuffer( const void* pdata,const uint32_t& dataSize, uint32_t typeSize  ) {
+    void AllocatedImage::DestroyImage( void ) {
+        if (defaultView != VK_NULL_HANDLE) {
+            vkDestroyImageView(vkdevice->GetGlobalDevice(), defaultView, nullptr);
+        }
+        
+        if (image != VK_NULL_HANDLE) {
+            vmaDestroyImage(vkdevice->GetGlobalMemoryAllocator(), image, allocation);
+        }
+    }
+
+
+    void AllocatedBuffer::AllocateBuffer( const VkBufferUsageFlags& usage, const uint32_t& dataSize, const uint32_t& typeSize  ) {
         if(dataSize > 0) {
             //allocate vertex buffer
             VkBufferCreateInfo bufferInfo = {};
             bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
             //this is the total size, in bytes, of the buffer we are allocating
-            bufferInfo.size = dataSize * typeSize;
+            bufferSize = dataSize * typeSize;
+            bufferInfo.size = bufferSize;
             //this buffer is going to be used as a Vertex Buffer
             bufferInfo.usage = usage;
-
 
             //let the VMA library know that this data should be writeable by CPU, but also readable by GPU
             VmaAllocationCreateInfo vmaallocInfo = {};
@@ -176,16 +187,30 @@ namespace idVkTools {
                 &buffer,
                 &allocation,
                 nullptr));
-            //copy vertex data
-            void* data;
-            vmaMapMemory(vkdevice->GetGlobalMemoryAllocator(), allocation, &data);
-
-            memcpy(data, pdata, dataSize * typeSize);
-
-            vmaUnmapMemory(vkdevice->GetGlobalMemoryAllocator(), allocation);
         }
         else{
             common->Warning("couldn't allocate a buffer due to data size = %d", dataSize);
+        }
+    }
+
+    void AllocatedBuffer::UploadBufferData( const void* pdata ) {
+        if(buffer != VK_NULL_HANDLE) {
+            //copy buffer data
+            void* data;
+            vmaMapMemory(vkdevice->GetGlobalMemoryAllocator(), allocation, &data);
+
+            memcpy(data, pdata, bufferSize);
+
+            vmaUnmapMemory(vkdevice->GetGlobalMemoryAllocator(), allocation);
+        }
+        else {
+            common->Warning("cannot upload data to a buffer. Forgot to allocate it");
+        }
+    }
+
+    void AllocatedBuffer::DestroyBuffer( void ) {
+        if (buffer != VK_NULL_HANDLE) {
+            vmaDestroyBuffer(vkdevice->GetGlobalMemoryAllocator(), buffer, allocation);
         }
     }
 }

@@ -1,5 +1,6 @@
 #pragma once 
 
+#include <cstdint>
 #define VK_NO_PROTOTYPES
 #include "renderer/Vulkan/third-party/volk/volk.h"
 
@@ -22,29 +23,21 @@ namespace idVkTools {
         VkFormat imageFormat;
 		int mipLevels;
 
-		void DestroyImage( VkDevice& device, VmaAllocator& allocator ) {
-			if (defaultView != VK_NULL_HANDLE) {
-				vkDestroyImageView(device, defaultView, nullptr);
-			}
-			
-			if (image != VK_NULL_HANDLE) {
-				vmaDestroyImage(allocator, image, allocation);
-			}
-		}
+		void DestroyImage( void );
 	};
 
-	struct AllocatedBuffer {
-		VkBuffer buffer = VK_NULL_HANDLE;
+	class AllocatedBuffer {
+	private:
 		VmaAllocation allocation;
-		VkBufferUsageFlags usage;
+		uint32_t bufferSize;
 
-		void AllocateBuffer( const void* pdata, const uint32_t& dataSize, uint32_t typeSize );
+	public:
+		VkBuffer buffer = VK_NULL_HANDLE;
+		void AllocateBuffer( const VkBufferUsageFlags& usage, const uint32_t& dataSize, const uint32_t& typeSize );
 
-		void DestroyBuffer( VmaAllocator& allocator ) {
-			if (buffer != VK_NULL_HANDLE) {
-				vmaDestroyBuffer(allocator, buffer, allocation);
-			}
-		}
+		void UploadBufferData( const void* pdata );
+
+		void DestroyBuffer( void );
 	};
 
 	void InsertImageMemoryBarrier( VkCommandBuffer& cmdbuffer, VkImage& image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldImageLayout, VkImageLayout newImageLayout, VkPipelineStageFlags srcStageMask, VkPipelineStageFlags dstStageMask, VkImageSubresourceRange subresourceRange );

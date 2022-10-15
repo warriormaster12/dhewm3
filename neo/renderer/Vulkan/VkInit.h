@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #define VK_NO_PROTOTYPES
 #include "third-party/vk-bootstrap/VkBootstrap.h"
 #include "third-party/volk/volk.h"
@@ -84,7 +85,7 @@ public:
     virtual void        SubmitFrame( void ) = 0;
     
     //framebuffer and renderpass replacement
-    virtual void        BeginRenderLayer( void ) = 0;
+    virtual void        BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 ) = 0;
     virtual void        EndRenderLayer( void ) = 0; 
 
     virtual void        CleanUp( void ) = 0;
@@ -92,9 +93,17 @@ public:
     int frameCount = 0;
 };
 
-
-
 extern idVulkanDevice * 	vkdevice;
 extern idVulkanRBE *        vkrbe;
+
+class DescriptorLayoutCache {
+public: 
+    virtual VkDescriptorSetLayout CreateDescriptorLayout( VkDescriptorSetLayoutCreateInfo& info ) = 0;
+    virtual void CleanUp( void ) = 0;
+};
+
+extern DescriptorLayoutCache* descriptorLayoutCache;
+
+
 
 
