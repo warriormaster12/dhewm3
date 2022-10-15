@@ -255,7 +255,8 @@ void idVulkanDeviceLocal::Init( void ){
     .add_desired_extension(VK_KHR_MULTIVIEW_EXTENSION_NAME)
     .add_desired_extension(VK_KHR_CREATE_RENDERPASS_2_EXTENSION_NAME)
     .add_desired_extension(VK_KHR_DEPTH_STENCIL_RESOLVE_EXTENSION_NAME)
-    .add_desired_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
+    .add_desired_extension(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)
+    .add_desired_extension(VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME);
 
 	vkb::PhysicalDevice physicalDeviceSelector = selector
 		.set_minimum_version(1, 3)

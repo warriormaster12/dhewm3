@@ -164,7 +164,7 @@ struct idShaderProgram {
     std::array<VkShaderModule,2> module;
     std::array<SpvReflectShaderModule,2> spvModule;
 
-    std::vector<VkDescriptorSetLayout> GenerateDescriptorLayouts( void );
+    std::vector<VkDescriptorSetLayout> GenerateDescriptorLayouts( idPipeline& pipeline );
 
     void Destroy( void ) {
         for(auto& current : module) {
@@ -403,7 +403,7 @@ bool idPipelineBuilderLocal::BuildGraphicsPipeline(std::vector<const char *> fil
     //build the pipeline layout that controls the inputs/outputs of the shader
 	//we are not using descriptor sets or other systems yet, so no need to use anything other than empty default
 	VkPipelineLayoutCreateInfo PipelineLayoutInfo = PipelineLayoutCreateInfo();
-    std::vector<VkDescriptorSetLayout> descriptorLayouts = program.GenerateDescriptorLayouts();
+    std::vector<VkDescriptorSetLayout> descriptorLayouts = program.GenerateDescriptorLayouts(idpipeline);
     if (descriptorLayouts.size() > 0) {
         PipelineLayoutInfo.pSetLayouts = descriptorLayouts.data();
         PipelineLayoutInfo.setLayoutCount = descriptorLayouts.size();
@@ -651,10 +651,10 @@ void DescriptorLayoutCacheLocal::CleanUp( void )
     }
 }
 
-std::vector<VkDescriptorSetLayout> idShaderProgram::GenerateDescriptorLayouts( void ) {
+std::vector<VkDescriptorSetLayout> idShaderProgram::GenerateDescriptorLayouts( idPipeline& pipeline ) {
     std::vector<VkPipelineShaderStageCreateInfo> shader_stages = {};
     std::vector<int> setNumbers;
-    std::vector<DescriptorSetLayoutData> descriptor_layouts = {};
+    std::vector<DescriptorSetLayoutData> descriptorLayouts = {};
     for(auto& currentModule : spvModule) {
         uint32_t count = 0;
         SpvReflectResult result = spvReflectEnumerateDescriptorSets(&currentModule, &count, NULL);
@@ -663,10 +663,10 @@ std::vector<VkDescriptorSetLayout> idShaderProgram::GenerateDescriptorLayouts( v
         result = spvReflectEnumerateDescriptorSets(&currentModule, &count, sets.data());
         assert(result == SPV_REFLECT_RESULT_SUCCESS);
 
-        std::vector<DescriptorSetLayoutData> set_layouts(sets.size(), DescriptorSetLayoutData{});
+        std::vector<DescriptorSetLayoutData> setLayouts(sets.size(), DescriptorSetLayoutData{});
         for (size_t i_set = 0; i_set < sets.size(); ++i_set) {
             const SpvReflectDescriptorSet& refl_set = *(sets[i_set]);
-            DescriptorSetLayoutData& layout = set_layouts[i_set];
+            DescriptorSetLayoutData& layout = setLayouts[i_set];
             layout.bindings.resize(refl_set.binding_count);
             for (uint32_t i_binding = 0; i_binding < refl_set.binding_count; ++i_binding) {
                 const SpvReflectDescriptorBinding& refl_binding = *(refl_set.bindings[i_binding]);
@@ -686,7 +686,7 @@ std::vector<VkDescriptorSetLayout> idShaderProgram::GenerateDescriptorLayouts( v
             layout.createInfo.bindingCount = refl_set.binding_count;
             layout.createInfo.pBindings = layout.bindings.data();
             
-            descriptor_layouts.push_back(layout);
+            descriptorLayouts.push_back(layout);
         }
     }
     
@@ -696,18 +696,18 @@ std::vector<VkDescriptorSetLayout> idShaderProgram::GenerateDescriptorLayouts( v
 
     setNumbers.resize(std::distance(setNumbers.begin(), iterator));
 
-    std::vector<DescriptorSetLayoutData> merged_layouts;
-    merged_layouts.resize(setNumbers.size());
+    std::vector<DescriptorSetLayoutData> mergedLayouts;
+    mergedLayouts.resize(setNumbers.size());
 	std::vector<VkDescriptorSetLayout> layouts;
-	for (int i = 0; i < merged_layouts.size(); i++) {
-		DescriptorSetLayoutData &ly = merged_layouts[i];
+	for (int i = 0; i < mergedLayouts.size(); i++) {
+		DescriptorSetLayoutData &ly = mergedLayouts[i];
 
 		ly.setNumber = i;
 
 		ly.createInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 
 		std::unordered_map<int,VkDescriptorSetLayoutBinding> binds;
-		for (auto& s : descriptor_layouts) {
+		for (auto& s : descriptorLayouts) {
 			if (s.setNumber == i) {
 				for (auto& b : s.bindings)
 				{
@@ -737,11 +737,25 @@ std::vector<VkDescriptorSetLayout> idShaderProgram::GenerateDescriptorLayouts( v
 
 		ly.createInfo.bindingCount = (uint32_t)ly.bindings.size();
 		ly.createInfo.pBindings = ly.bindings.data();
-		ly.createInfo.flags = 0;
+        //we are most likely going to support just push descriptors
+		ly.createInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
 		ly.createInfo.pNext = 0;
 		
 
 		layouts.push_back(layoutCacheLocal.CreateDescriptorLayout(ly.createInfo));
 	}
+
+    for(auto& layout : mergedLayouts) {
+        idPipeline::DescriptorInfo descriptorInfo;
+        descriptorInfo.bindingInfo.resize(layout.bindings.size());
+        for(int i = 0; i < layout.bindings.size(); i++) { 
+            descriptorInfo.bindingInfo[i].shaderStageFlags = layout.bindings[i].stageFlags;
+            descriptorInfo.bindingInfo[i].descriptorTypes = layout.bindings[i].descriptorType;
+            descriptorInfo.bindingInfo[i].binding = layout.bindings[i].binding;
+        }
+
+        pipeline.descriptorSets.push_back(descriptorInfo);
+    }
+    
     return layouts;
 }

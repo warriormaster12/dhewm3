@@ -30,10 +30,11 @@ namespace idVkTools {
 	private:
 		VmaAllocation allocation;
 		uint32_t bufferSize;
-
 	public:
 		VkBuffer buffer = VK_NULL_HANDLE;
-		void AllocateBuffer( const VkBufferUsageFlags& usage, const uint32_t& dataSize, const uint32_t& typeSize );
+		VkDescriptorBufferInfo descBuffInfo = {};
+
+		void AllocateBuffer( const VkBufferUsageFlags& usage, VmaMemoryUsage memoryUsage, const uint32_t& dataSize, const uint32_t& typeSize );
 
 		void UploadBufferData( const void* pdata );
 

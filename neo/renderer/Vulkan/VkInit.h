@@ -45,6 +45,16 @@ struct idPipeline {
 	VkRect2D scissor;
 	VkPipelineLayout pipelineLayout;
     bool depthEnabled;
+    struct DescriptorInfo {
+        struct BindingInfo {
+            VkShaderStageFlags shaderStageFlags;
+            VkDescriptorType descriptorTypes;
+            uint32_t binding = 0;
+        };
+        
+        std::vector<BindingInfo> bindingInfo;
+    };
+    std::vector<DescriptorInfo> descriptorSets;
     void DestroyPipeline();
 };
 

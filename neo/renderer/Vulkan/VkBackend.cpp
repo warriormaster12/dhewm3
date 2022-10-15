@@ -1,6 +1,7 @@
 #include "VkInit.h"
 #include "VkTools.h"
 
+#include "framework/Common.h"
 #include "idlib/math/Vector.h"
 #include <vector>
 
@@ -29,6 +30,8 @@ struct Vertex {
 
 idVkTools::AllocatedBuffer vertexBuffer;
 idVkTools::AllocatedBuffer indexBuffer;
+idVkTools::AllocatedBuffer uboBuffer;
+
 std::vector<Vertex> vertices;
 std::vector<uint32_t> indicies;
 
@@ -152,10 +155,11 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
         vertices[3].color.Set(1.f,1.f, 1.0f); //pure blue
 
         
-        vertexBuffer.AllocateBuffer( VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,vertices.size(), sizeof(Vertex));
+        vertexBuffer.AllocateBuffer( VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,VMA_MEMORY_USAGE_CPU_TO_GPU,vertices.size(), sizeof(Vertex));
         vertexBuffer.UploadBufferData(vertices.data());
-        indexBuffer.AllocateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, indicies.size(), sizeof(uint32_t));
+        indexBuffer.AllocateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT,VMA_MEMORY_USAGE_CPU_TO_GPU,indicies.size(), sizeof(uint32_t));
         indexBuffer.UploadBufferData(indicies.data());
+        uboBuffer.AllocateBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, 1, sizeof(idVec3));
         doOnce = false;
     }
 
@@ -183,6 +187,26 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
         vkCmdBindVertexBuffers(currentFrame.commandBuffer, 0, 1, &vertexBuffer.buffer, &offset);
 
         vkCmdBindPipeline(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, testPipeline.pipeline);
+        std::vector<VkWriteDescriptorSet> writes;
+        for (auto& set : testPipeline.descriptorSets) {
+            VkWriteDescriptorSet  writeDescriptorSets{};
+            writeDescriptorSets.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            writeDescriptorSets.dstSet = 0;
+            for(auto& binding : set.bindingInfo) {
+                writeDescriptorSets.dstBinding = binding.binding;
+                writeDescriptorSets.descriptorType = binding.descriptorTypes;
+            }
+            writeDescriptorSets.descriptorCount = 1;
+            writeDescriptorSets.pBufferInfo = &uboBuffer.descBuffInfo;
+            writes.push_back(writeDescriptorSets);
+        }
+
+        idVec3 color;
+        
+        color.Set(0.5, 0.0f, 0.5f);
+        uboBuffer.UploadBufferData(&color);
+
+        vkCmdPushDescriptorSetKHR(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, testPipeline.pipelineLayout, 0, writes.size(), writes.data());
         if(indicies.size() > 0) {
             vkCmdBindIndexBuffer(currentFrame.commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
             vkCmdDrawIndexed(currentFrame.commandBuffer, indicies.size(), 1, 0, 0, 0);
@@ -265,6 +289,8 @@ void idVulkanRBELocal::SubmitFrame( void ) {
 
 void idVulkanRBELocal::CleanUp() {
     testPipeline.DestroyPipeline();
+    descriptorLayoutCache->CleanUp();
     vertexBuffer.DestroyBuffer();
     indexBuffer.DestroyBuffer();
+    uboBuffer.DestroyBuffer();
 }

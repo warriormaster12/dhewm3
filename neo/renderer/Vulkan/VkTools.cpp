@@ -2,6 +2,7 @@
 #include "VkInit.h"
 #include "framework/Common.h"
 
+
 #define ID_VK_ERROR_STRING( x ) case static_cast< int >( x ): return #x
 
 /*
@@ -167,7 +168,7 @@ namespace idVkTools {
     }
 
 
-    void AllocatedBuffer::AllocateBuffer( const VkBufferUsageFlags& usage, const uint32_t& dataSize, const uint32_t& typeSize  ) {
+    void AllocatedBuffer::AllocateBuffer( const VkBufferUsageFlags& usage, VmaMemoryUsage memoryUsage,const uint32_t& dataSize, const uint32_t& typeSize  ) {
         if(dataSize > 0) {
             //allocate vertex buffer
             VkBufferCreateInfo bufferInfo = {};
@@ -180,13 +181,18 @@ namespace idVkTools {
 
             //let the VMA library know that this data should be writeable by CPU, but also readable by GPU
             VmaAllocationCreateInfo vmaallocInfo = {};
-            vmaallocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
+            vmaallocInfo.usage = memoryUsage;
 
             //allocate the buffer
             ID_VK_CHECK_RESULT(vmaCreateBuffer(vkdevice->GetGlobalMemoryAllocator(), &bufferInfo, &vmaallocInfo,
                 &buffer,
                 &allocation,
                 nullptr));
+            
+            if(usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT || usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
+                descBuffInfo.buffer = buffer;
+                descBuffInfo.range = bufferSize;
+            }
         }
         else{
             common->Warning("couldn't allocate a buffer due to data size = %d", dataSize);
