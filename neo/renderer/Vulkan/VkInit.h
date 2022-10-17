@@ -96,6 +96,8 @@ public:
     
     //framebuffer and renderpass replacement
     virtual void        BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 ) = 0;
+    virtual void        Draw( const uint32_t& vertexCount, const uint32_t& instanceCount = 1, const uint32_t& firstVertex = 0, const uint32_t& firstInstance = 0 ) = 0;
+    virtual void        DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount = 1, const uint32_t& firstIndex = 0, const int32_t& vertexOffset = 0, const uint32_t& firstInstance = 0 ) = 0;
     virtual void        EndRenderLayer( void ) = 0; 
 
     virtual void        CleanUp( void ) = 0;

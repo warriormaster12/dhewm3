@@ -26,6 +26,7 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
+#include "framework/Common.h"
 #include "sys/platform.h"
 #include "renderer/VertexCache.h"
 #include "renderer/Cinematic.h"

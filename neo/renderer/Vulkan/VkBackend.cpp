@@ -10,6 +10,8 @@ public:
     virtual void PrepareFrame( void );
     virtual void SubmitFrame( void );
     virtual void BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 );
+    virtual void Draw( const uint32_t& vertexCount, const uint32_t& instanceCount = 1, const uint32_t& firstVertex = 0, const uint32_t& firstInstance = 0 );
+    virtual void DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount = 1, const uint32_t& firstIndex = 0, const int32_t& vertexOffset = 0, const uint32_t& firstInstance = 0 );
     virtual void EndRenderLayer( void );
     virtual void CleanUp( void );
 private:
@@ -209,12 +211,23 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
         vkCmdPushDescriptorSetKHR(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, testPipeline.pipelineLayout, 0, writes.size(), writes.data());
         if(indicies.size() > 0) {
             vkCmdBindIndexBuffer(currentFrame.commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-            vkCmdDrawIndexed(currentFrame.commandBuffer, indicies.size(), 1, 0, 0, 0);
+            DrawIndexed(indicies.size());
         }
         else {
-            vkCmdDraw(currentFrame.commandBuffer, vertices.size(), 1, 0, 0);
+            Draw(vertices.size());
         }
     }
+}
+
+void idVulkanRBELocal::Draw( const uint32_t& vertexCount, const uint32_t& instanceCount /*= 1*/, const uint32_t& firstVertex /*= 0*/, const uint32_t& firstInstance /*= 0*/) {
+    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
+    vkCmdDraw(currentFrame.commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+}
+
+void idVulkanRBELocal::DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount /*= 1*/, const uint32_t& firstIndex /*= 0*/, const int32_t& vertexOffset /*= 0*/, const uint32_t& firstInstance /*= 0*/ ) {
+    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
+    vkCmdDrawIndexed(currentFrame.commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+
 }
 
 void idVulkanRBELocal::EndRenderLayer( void ) {
