@@ -574,6 +574,7 @@ void idRenderSystemLocal::BeginFrame( int windowWidth, int windowHeight ) {
 		vkrbe->frameCount = frameCount;
 		vkrbe->PrepareFrame();
 		vkrbe->BeginRenderLayer();
+
 	}
 	else {
 		setBufferCommand_t	*cmd;

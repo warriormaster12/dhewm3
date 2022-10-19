@@ -2,7 +2,7 @@
 #include "VkTools.h"
 
 #include "framework/Common.h"
-#include "idlib/math/Vector.h"
+#include <cstddef>
 #include <vector>
 
 class idVulkanRBELocal : public idVulkanRBE {
@@ -10,6 +10,7 @@ public:
     virtual void PrepareFrame( void );
     virtual void SubmitFrame( void );
     virtual void BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 );
+    virtual void BindVertexBuffer( const uint32_t& firstBinding, const uint32_t& bindingCount, idVkTools::AllocatedBuffer& buffer, const VkDeviceSize& offset = 0 );
     virtual void Draw( const uint32_t& vertexCount, const uint32_t& instanceCount = 1, const uint32_t& firstVertex = 0, const uint32_t& firstInstance = 0 );
     virtual void DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount = 1, const uint32_t& firstIndex = 0, const int32_t& vertexOffset = 0, const uint32_t& firstInstance = 0 );
     virtual void EndRenderLayer( void );
@@ -21,23 +22,6 @@ private:
 idVulkanRBELocal vkrbeLocal;
 
 idVulkanRBE* vkrbe = &vkrbeLocal;
-
-idPipeline testPipeline;
-
-struct Vertex {
-    idVec3 position;
-    idVec3 color;
-};
-
-
-idVkTools::AllocatedBuffer vertexBuffer;
-idVkTools::AllocatedBuffer indexBuffer;
-idVkTools::AllocatedBuffer uboBuffer;
-
-std::vector<Vertex> vertices;
-std::vector<uint32_t> indicies;
-
-bool doOnce = true;
 
 
 
@@ -135,88 +119,54 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
     renderingInfo.viewMask = 0;
     renderingInfo.colorAttachmentCount = 1;
     renderingInfo.pColorAttachments = &colorAttachment;
-    testPipeline.depthEnabled = false;
-    if (testPipeline.depthEnabled) {
-        renderingInfo.pDepthAttachment = &depthStencilAttachment;
-        renderingInfo.pStencilAttachment = &depthStencilAttachment;
-    }
-
-    if(doOnce) {
-        vertices.resize(4);
-        indicies = {0, 1, 2, 2, 3, 0};
-        //vertex positions
-        vertices[0].position.Set(-0.5f, -0.5f, 0.0f );
-        vertices[1].position.Set(0.5f, -0.5f, 0.0f );
-        vertices[2].position.Set(0.5f,0.5f, 0.0f);
-        vertices[3].position.Set(-0.5f,0.5f, 0.0f);
-
-        //vertex colors, all green
-        vertices[0].color.Set(1.f,0.f, 0.0f); //pure red
-        vertices[1].color.Set(0.f,1.f, 0.0f); //pure green
-        vertices[2].color.Set(0.f,0.f, 1.0f); //pure blue
-        vertices[3].color.Set(1.f,1.f, 1.0f); //pure blue
-
-        
-        vertexBuffer.AllocateBuffer( VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,VMA_MEMORY_USAGE_CPU_TO_GPU,vertices.size(), sizeof(Vertex));
-        vertexBuffer.UploadBufferData(vertices.data());
-        indexBuffer.AllocateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT,VMA_MEMORY_USAGE_CPU_TO_GPU,indicies.size(), sizeof(uint32_t));
-        indexBuffer.UploadBufferData(indicies.data());
-        uboBuffer.AllocateBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, 1, sizeof(idVec3));
-        doOnce = false;
+    if ( currentPipeline != nullptr ) {
+        if ( currentPipeline->depthEnabled ) {
+            renderingInfo.pDepthAttachment = &depthStencilAttachment;
+            renderingInfo.pStencilAttachment = &depthStencilAttachment;
+        }
     }
 
     // Begin dynamic rendering
     vkCmdBeginRenderingKHR(currentFrame.commandBuffer, &renderingInfo);
-    
-    if(pipelinebuilder->BuildGraphicsPipeline({"base/renderprogs/simple_triangle.vert.spv","base/renderprogs/simple_triangle.frag.spv"}
-        , {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT}, testPipeline)) 
-    {
-        testPipeline.viewport.width = vkdevice->GetSwapchainExtent().width;
-        testPipeline.viewport.height = vkdevice->GetSwapchainExtent().height;
-        testPipeline.viewport.x = 0.0f;
-        testPipeline.viewport.y = 0.0f;
-        testPipeline.viewport.minDepth = 0.0f;
-        testPipeline.viewport.maxDepth = 1.0f;
+    if ( currentPipeline != nullptr ) {
+        currentPipeline->viewport.width = vkdevice->GetSwapchainExtent().width;
+        currentPipeline->viewport.height = vkdevice->GetSwapchainExtent().height;
+        currentPipeline->viewport.x = 0.0f;
+        currentPipeline->viewport.y = 0.0f;
+        currentPipeline->viewport.minDepth = 0.0f;
+        currentPipeline->viewport.maxDepth = 1.0f;
         
-        testPipeline.scissor.extent = vkdevice->GetSwapchainExtent();
-        testPipeline.scissor.offset = {0, 0};
+        currentPipeline->scissor.extent = vkdevice->GetSwapchainExtent();
+        currentPipeline->scissor.offset = {0, 0};
 
-        vkCmdSetViewport(currentFrame.commandBuffer, 0, 1, &testPipeline.viewport);
-        vkCmdSetScissor(currentFrame.commandBuffer, 0, 1,&testPipeline.scissor);
+        vkCmdSetViewport(currentFrame.commandBuffer, 0, 1, &currentPipeline->viewport);
+        vkCmdSetScissor(currentFrame.commandBuffer, 0, 1,&currentPipeline->scissor);
 
-        //bind the mesh vertex buffer with offset 0
-        VkDeviceSize offset = 0;
-        vkCmdBindVertexBuffers(currentFrame.commandBuffer, 0, 1, &vertexBuffer.buffer, &offset);
-
-        vkCmdBindPipeline(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, testPipeline.pipeline);
-        std::vector<VkWriteDescriptorSet> writes;
-        for (auto& set : testPipeline.descriptorSets) {
-            VkWriteDescriptorSet  writeDescriptorSets{};
-            writeDescriptorSets.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-            writeDescriptorSets.dstSet = 0;
+        vkCmdBindPipeline(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentPipeline->pipeline);
+        for (int i = 0; i < currentPipeline->descriptorSets.size(); i++) {
+            auto& set = currentPipeline->descriptorSets[i];
+            auto* currentBuffer = &currentPipeline->descriptorBufferInfos[i];
+            std::vector<VkWriteDescriptorSet> writes;
             for(auto& binding : set.bindingInfo) {
+                VkWriteDescriptorSet  writeDescriptorSets{};
+                writeDescriptorSets.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+                writeDescriptorSets.dstSet = 0;
                 writeDescriptorSets.dstBinding = binding.binding;
                 writeDescriptorSets.descriptorType = binding.descriptorTypes;
+                writeDescriptorSets.descriptorCount = 1;
+                if (currentBuffer->binding == binding.binding && currentBuffer != nullptr) {
+                    writeDescriptorSets.pBufferInfo = &currentBuffer->buffInfo;
+                }
+                writes.push_back(writeDescriptorSets);
             }
-            writeDescriptorSets.descriptorCount = 1;
-            writeDescriptorSets.pBufferInfo = &uboBuffer.descBuffInfo;
-            writes.push_back(writeDescriptorSets);
-        }
-
-        idVec3 color;
-        
-        color.Set(0.5, 0.0f, 0.5f);
-        uboBuffer.UploadBufferData(&color);
-
-        vkCmdPushDescriptorSetKHR(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, testPipeline.pipelineLayout, 0, writes.size(), writes.data());
-        if(indicies.size() > 0) {
-            vkCmdBindIndexBuffer(currentFrame.commandBuffer, indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
-            DrawIndexed(indicies.size());
-        }
-        else {
-            Draw(vertices.size());
+            vkCmdPushDescriptorSetKHR(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentPipeline->pipelineLayout, i, writes.size(), writes.data());
         }
     }
+}
+
+void idVulkanRBELocal::BindVertexBuffer(const uint32_t &firstBinding, const uint32_t &bindingCount, idVkTools::AllocatedBuffer &buffer, const VkDeviceSize& offset /*= 0*/) {
+    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
+    vkCmdBindVertexBuffers(currentFrame.commandBuffer, firstBinding, bindingCount, &buffer.buffer, &offset);
 }
 
 void idVulkanRBELocal::Draw( const uint32_t& vertexCount, const uint32_t& instanceCount /*= 1*/, const uint32_t& firstVertex /*= 0*/, const uint32_t& firstInstance /*= 0*/) {
@@ -301,9 +251,9 @@ void idVulkanRBELocal::SubmitFrame( void ) {
 }
 
 void idVulkanRBELocal::CleanUp() {
-    testPipeline.DestroyPipeline();
-    descriptorLayoutCache->CleanUp();
-    vertexBuffer.DestroyBuffer();
-    indexBuffer.DestroyBuffer();
-    uboBuffer.DestroyBuffer();
+    // testPipeline.DestroyPipeline();
+    // descriptorLayoutCache->CleanUp();
+    // vertexBuffer.DestroyBuffer();
+    // indexBuffer.DestroyBuffer();
+    // uboBuffer.DestroyBuffer();
 }

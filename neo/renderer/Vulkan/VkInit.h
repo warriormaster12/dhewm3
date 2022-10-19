@@ -1,5 +1,6 @@
 #pragma once
 
+#include "renderer/Vulkan/VkTools.h"
 #include <cstdint>
 #define VK_NO_PROTOTYPES
 #include "third-party/vk-bootstrap/VkBootstrap.h"
@@ -54,7 +55,17 @@ struct idPipeline {
         
         std::vector<BindingInfo> bindingInfo;
     };
+    struct DescriptorBufferInfo {
+        uint32_t binding = 0;
+        VkDescriptorBufferInfo buffInfo = {};
+    };
+    struct DescriptorImageInfo {
+        uint32_t binding = 0;
+        VkDescriptorImageInfo imageInfo = {};
+    };
     std::vector<DescriptorInfo> descriptorSets;
+    std::vector<DescriptorBufferInfo> descriptorBufferInfos;
+    std::vector<DescriptorBufferInfo> descriptorImageInfos;
     void DestroyPipeline();
 };
 
@@ -96,6 +107,7 @@ public:
     
     //framebuffer and renderpass replacement
     virtual void        BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 ) = 0;
+    virtual void        BindVertexBuffer( const uint32_t& firstBinding, const uint32_t& bindingCount, idVkTools::AllocatedBuffer& buffer, const VkDeviceSize& offset = 0 ) = 0;
     virtual void        Draw( const uint32_t& vertexCount, const uint32_t& instanceCount = 1, const uint32_t& firstVertex = 0, const uint32_t& firstInstance = 0 ) = 0;
     virtual void        DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount = 1, const uint32_t& firstIndex = 0, const int32_t& vertexOffset = 0, const uint32_t& firstInstance = 0 ) = 0;
     virtual void        EndRenderLayer( void ) = 0; 
@@ -103,6 +115,8 @@ public:
     virtual void        CleanUp( void ) = 0;
 
     int frameCount = 0;
+
+    idPipeline* currentPipeline = nullptr;
 };
 
 extern idVulkanDevice * 	vkdevice;

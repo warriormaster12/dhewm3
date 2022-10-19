@@ -691,6 +691,8 @@ void R_InitVulkan( void ) {
 	vkdevice->Init();
 	vkdevice->CreateSwapchain(parms.width, parms.height);
 	vkdevice->vkInitialized = true;
+
+	R_InitFrameData();
 }
 
 void R_InitOpenGL( void ) {
@@ -2346,10 +2348,10 @@ bool idRenderSystemLocal::IsOpenGLRunning( void ) const {
 }
 
 bool idRenderSystemLocal::IsVulkanRunning( void ) const {
-	if ( vkdevice->vkInitialized ) {
-		return true;
+	if ( !vkdevice->vkInitialized ) {
+		return false;
 	}
-	return false;
+	return true;
 }
 
 void idRenderSystemLocal::InitRenderingAPI() {
