@@ -567,17 +567,20 @@ BeginFrame
 ====================
 */
 void idRenderSystemLocal::BeginFrame( int windowWidth, int windowHeight ) {
+	setBufferCommand_t	*cmd;
 	if ( r_renderApi.GetBool() ) {
 		if( !vkdevice->vkInitialized ) {
 			return;
 		}
 		vkrbe->frameCount = frameCount;
 		vkrbe->PrepareFrame();
-		vkrbe->BeginRenderLayer();
+
+		cmd = (setBufferCommand_t *)R_GetCommandBuffer( sizeof( *cmd ) );
+		cmd->commandId = RC_SET_BUFFER;
+		cmd->frameCount = frameCount;
 
 	}
 	else {
-		setBufferCommand_t	*cmd;
 
 		if ( !glConfig.isInitialized ) {
 			return;
@@ -676,18 +679,32 @@ Returns the number of msec spent in the back end
 =============
 */
 void idRenderSystemLocal::EndFrame( int *frontEndMsec, int *backEndMsec ) {
+	emptyCommand_t *cmd;
 	if ( r_renderApi.GetBool() ) {
 		if( !vkdevice->vkInitialized ) {
 			return;
 		}
-		vkrbe->EndRenderLayer();
-		vkrbe->SubmitFrame();
-		// start the back end up again with the new command list
+		// close any gui drawing
+		guiModel->EmitFullScreen();
+		guiModel->Clear();
+
+		// save out timing information
+		if ( frontEndMsec ) {
+			*frontEndMsec = pc.frontEndMsec;
+		}
+		if ( backEndMsec ) {
+			*backEndMsec = backEnd.pc.msec;
+		}
+
+
 		R_IssueRenderCommands();
+		R_ToggleSmpFrame();
+
+		vkrbe->SubmitFrame();
+		
 		frameCount++;
 	}
 	else {
-		emptyCommand_t *cmd;
 
 		if ( !glConfig.isInitialized ) {
 			return;

@@ -681,7 +681,7 @@ void idRenderWorldLocal::RenderScene( const renderView_t *renderView ) {
 #ifndef	ID_DEDICATED
 	renderView_t	copy;
 
-	if ( !glConfig.isInitialized ) {
+	if ( !glConfig.isInitialized && !vkdevice->vkInitialized ) {
 		return;
 	}
 

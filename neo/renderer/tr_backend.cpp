@@ -438,8 +438,9 @@ static void	RB_SetBuffer( const void *data ) {
 	cmd = (const setBufferCommand_t *)data;
 
 	backEnd.frameCount = cmd->frameCount;
-
-	qglDrawBuffer( cmd->buffer );
+	if ( !r_renderApi.GetBool() ) {
+		qglDrawBuffer( cmd->buffer );
+	}
 
 	// clear screen for debugging
 	// automatically enable this with several other debug tools
@@ -447,15 +448,39 @@ static void	RB_SetBuffer( const void *data ) {
 	if ( r_clear.GetFloat() || idStr::Length( r_clear.GetString() ) != 1 || r_lockSurfaces.GetBool() || r_singleArea.GetBool() || r_showOverDraw.GetBool() ) {
 		float c[3];
 		if ( sscanf( r_clear.GetString(), "%f %f %f", &c[0], &c[1], &c[2] ) == 3 ) {
-			qglClearColor( c[0], c[1], c[2], 1 );
+			if ( r_renderApi.GetBool() ) {
+				vkrbe->BeginRenderLayer({c[0], c[1], c[2], 1});
+			}
+			else {
+				qglClearColor( c[0], c[1], c[2], 1 );
+			}
 		} else if ( r_clear.GetInteger() == 2 ) {
-			qglClearColor( 0.0f, 0.0f,  0.0f, 1.0f );
+			if ( r_renderApi.GetBool() ) {
+				vkrbe->BeginRenderLayer( {0.0f, 0.0f,  0.0f, 1.0f} );
+			}
+			else {
+				qglClearColor( 0.0f, 0.0f,  0.0f, 1.0f );	
+			}
 		} else if ( r_showOverDraw.GetBool() ) {
-			qglClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
+			if ( r_renderApi.GetBool() ) {
+				vkrbe->BeginRenderLayer({1.0f, 1.0f, 1.0f, 1.0f});
+			}
+			else {
+				qglClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
+			}
 		} else {
-			qglClearColor( 0.4f, 0.0f, 0.25f, 1.0f );
+			if ( r_renderApi.GetBool() ) {
+				vkrbe->BeginRenderLayer({0.4f, 0.0f, 0.25f, 1.0f});
+			}
+			else {
+				qglClearColor( 0.4f, 0.0f, 0.25f, 1.0f );
+			}
 		}
-		qglClear( GL_COLOR_BUFFER_BIT );
+		if ( r_renderApi.GetBool() ) {
+			vkrbe->EndRenderLayer();
+		}else {
+			qglClear( GL_COLOR_BUFFER_BIT );
+		}
 	}
 }
 
@@ -649,8 +674,10 @@ void RB_ExecuteBackEndCommands( const emptyCommand_t *cmds ) {
 
 	backEndStartTime = Sys_Milliseconds();
 
-	// needed for editor rendering
-	RB_SetDefaultGLState();
+	if ( !r_renderApi.GetBool() ) {
+		// needed for editor rendering
+		RB_SetDefaultGLState();
+	}
 
 	// upload any image loads that have completed
 	globalImages->CompleteBackgroundImageLoads();
@@ -687,8 +714,10 @@ void RB_ExecuteBackEndCommands( const emptyCommand_t *cmds ) {
 	}
 
 	// go back to the default texture so the editor doesn't mess up a bound image
-	qglBindTexture( GL_TEXTURE_2D, 0 );
-	backEnd.glState.tmu[0].current2DMap = -1;
+	if ( !r_renderApi.GetBool() ) {
+		qglBindTexture( GL_TEXTURE_2D, 0 );
+		backEnd.glState.tmu[0].current2DMap = -1;
+	}
 
 	// stop rendering on this thread
 	backEndFinishTime = Sys_Milliseconds();

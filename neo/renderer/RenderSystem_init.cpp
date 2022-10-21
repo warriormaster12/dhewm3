@@ -697,9 +697,11 @@ void R_InitVulkan( void ) {
 	soundSystem->InitHW();
 
 	// allocate the vertex array range or vertex objects
-	vertexCache.Init();
+	//vertexCache.Init();
 
 	R_InitFrameData();
+
+	//glConfig.isInitialized = vkdevice->vkInitialized;
 }
 
 void R_InitOpenGL( void ) {
