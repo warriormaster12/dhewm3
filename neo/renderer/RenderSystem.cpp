@@ -682,6 +682,8 @@ void idRenderSystemLocal::EndFrame( int *frontEndMsec, int *backEndMsec ) {
 		}
 		vkrbe->EndRenderLayer();
 		vkrbe->SubmitFrame();
+		// start the back end up again with the new command list
+		R_IssueRenderCommands();
 		frameCount++;
 	}
 	else {

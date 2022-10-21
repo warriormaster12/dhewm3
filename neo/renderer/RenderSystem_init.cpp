@@ -692,6 +692,13 @@ void R_InitVulkan( void ) {
 	vkdevice->CreateSwapchain(parms.width, parms.height);
 	vkdevice->vkInitialized = true;
 
+	// input and sound systems need to be tied to the new window
+	Sys_InitInput();
+	soundSystem->InitHW();
+
+	// allocate the vertex array range or vertex objects
+	vertexCache.Init();
+
 	R_InitFrameData();
 }
 
@@ -2310,6 +2317,8 @@ void idRenderSystemLocal::InitOpenGL( void ) {
 
 void idRenderSystemLocal::InitVulkan( void ) {
 	R_InitVulkan();
+
+	globalImages->ReloadAllImages();
 }
 
 /*
