@@ -106,7 +106,7 @@ public:
     virtual void        SubmitFrame( void ) = 0;
     
     //framebuffer and renderpass replacement
-    virtual void        BeginRenderLayer( std::vector<float> clearColor,uint32_t width = 0, uint32_t height = 0 ) = 0;
+    virtual void        BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 ) = 0;
     virtual void        BindVertexBuffer( const uint32_t& firstBinding, const uint32_t& bindingCount, idVkTools::AllocatedBuffer& buffer, const VkDeviceSize& offset = 0 ) = 0;
     virtual void        Draw( const uint32_t& vertexCount, const uint32_t& instanceCount = 1, const uint32_t& firstVertex = 0, const uint32_t& firstInstance = 0 ) = 0;
     virtual void        DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount = 1, const uint32_t& firstIndex = 0, const int32_t& vertexOffset = 0, const uint32_t& firstInstance = 0 ) = 0;
@@ -115,6 +115,8 @@ public:
     virtual void        CleanUp( void ) = 0;
 
     int frameCount = 0;
+
+    float clearColor[4];
 
     idPipeline* currentPipeline = nullptr;
 };

@@ -572,12 +572,16 @@ void idRenderSystemLocal::BeginFrame( int windowWidth, int windowHeight ) {
 		if( !vkdevice->vkInitialized ) {
 			return;
 		}
-		vkrbe->frameCount = frameCount;
-		vkrbe->PrepareFrame();
+		// set the time for shader effects in 2D rendering
+		frameShaderTime = eventLoop->Milliseconds() * 0.001;
 
 		cmd = (setBufferCommand_t *)R_GetCommandBuffer( sizeof( *cmd ) );
 		cmd->commandId = RC_SET_BUFFER;
 		cmd->frameCount = frameCount;
+		
+		vkrbe->frameCount = frameCount;
+		vkrbe->PrepareFrame();
+		vkrbe->BeginRenderLayer();
 
 	}
 	else {
@@ -641,7 +645,7 @@ void idRenderSystemLocal::BeginFrame( int windowWidth, int windowHeight ) {
 		// the first rendering will be used for commands like
 		// screenshot, rather than a possible subsequent remote
 		// or mirror render
-	//	primaryWorld = NULL;
+		//	primaryWorld = NULL;
 
 		// set the time for shader effects in 2D rendering
 		frameShaderTime = eventLoop->Milliseconds() * 0.001;
@@ -684,6 +688,7 @@ void idRenderSystemLocal::EndFrame( int *frontEndMsec, int *backEndMsec ) {
 		if( !vkdevice->vkInitialized ) {
 			return;
 		}
+		vkrbe->EndRenderLayer();
 		// close any gui drawing
 		guiModel->EmitFullScreen();
 		guiModel->Clear();
@@ -696,11 +701,13 @@ void idRenderSystemLocal::EndFrame( int *frontEndMsec, int *backEndMsec ) {
 			*backEndMsec = backEnd.pc.msec;
 		}
 
-
 		R_IssueRenderCommands();
 		R_ToggleSmpFrame();
 
 		vkrbe->SubmitFrame();
+
+		// we can now release the vertexes used this frame
+		vertexCache.EndFrame();
 		
 		frameCount++;
 	}

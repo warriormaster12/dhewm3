@@ -449,36 +449,46 @@ static void	RB_SetBuffer( const void *data ) {
 		float c[3];
 		if ( sscanf( r_clear.GetString(), "%f %f %f", &c[0], &c[1], &c[2] ) == 3 ) {
 			if ( r_renderApi.GetBool() ) {
-				vkrbe->BeginRenderLayer({c[0], c[1], c[2], 1});
+				vkrbe->clearColor[0] = c[0];
+				vkrbe->clearColor[1] = c[1];
+				vkrbe->clearColor[2] = c[2];
+				vkrbe->clearColor[3] = 1.0f;
 			}
 			else {
 				qglClearColor( c[0], c[1], c[2], 1 );
 			}
 		} else if ( r_clear.GetInteger() == 2 ) {
 			if ( r_renderApi.GetBool() ) {
-				vkrbe->BeginRenderLayer( {0.0f, 0.0f,  0.0f, 1.0f} );
+				vkrbe->clearColor[0] = 0.0f;
+				vkrbe->clearColor[1] = 0.0f;
+				vkrbe->clearColor[2] = 0.0f;
+				vkrbe->clearColor[3] = 1.0f;
 			}
 			else {
 				qglClearColor( 0.0f, 0.0f,  0.0f, 1.0f );	
 			}
 		} else if ( r_showOverDraw.GetBool() ) {
 			if ( r_renderApi.GetBool() ) {
-				vkrbe->BeginRenderLayer({1.0f, 1.0f, 1.0f, 1.0f});
+				vkrbe->clearColor[0] = 1.0f;
+				vkrbe->clearColor[1] = 1.0f;
+				vkrbe->clearColor[2] = 1.0f;
+				vkrbe->clearColor[3] = 1.0f;
 			}
 			else {
 				qglClearColor( 1.0f, 1.0f, 1.0f, 1.0f );
 			}
 		} else {
 			if ( r_renderApi.GetBool() ) {
-				vkrbe->BeginRenderLayer({0.4f, 0.0f, 0.25f, 1.0f});
+				vkrbe->clearColor[0] = 0.4f;
+				vkrbe->clearColor[1] = 0.0f;
+				vkrbe->clearColor[2] = 0.25f;
+				vkrbe->clearColor[3] = 1.0f;
 			}
 			else {
 				qglClearColor( 0.4f, 0.0f, 0.25f, 1.0f );
 			}
 		}
-		if ( r_renderApi.GetBool() ) {
-			vkrbe->EndRenderLayer();
-		}else {
+		if ( !r_renderApi.GetBool() ) {
 			qglClear( GL_COLOR_BUFFER_BIT );
 		}
 	}

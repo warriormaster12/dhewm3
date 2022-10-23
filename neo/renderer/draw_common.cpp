@@ -1733,48 +1733,55 @@ RB_STD_DrawView
 =============
 */
 void	RB_STD_DrawView( void ) {
-	drawSurf_t	 **drawSurfs;
-	int			numDrawSurfs;
-
-	backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
-
-	drawSurfs = (drawSurf_t **)&backEnd.viewDef->drawSurfs[0];
-	numDrawSurfs = backEnd.viewDef->numDrawSurfs;
-
-	// clear the z buffer, set the projection matrix, etc
-	RB_BeginDrawingView();
-
-	// decide how much overbrighting we are going to do
-	RB_DetermineLightScale();
-
-	// fill the depth buffer and clear color buffer to black except on
-	// subviews
-	RB_STD_FillDepthBuffer( drawSurfs, numDrawSurfs );
-
-	// main light renderer
-	switch( tr.backEndRenderer ) {
-	case BE_ARB2:
-		RB_ARB2_DrawInteractions();
-		break;
+	if ( r_renderApi.GetBool() ) {
+		RB_DrawElementsWithCounters(nullptr);
 	}
+	else {
+		drawSurf_t	 **drawSurfs;
+		int			numDrawSurfs;
 
-	// disable stencil shadow test
-	qglStencilFunc( GL_ALWAYS, 128, 255 );
+		backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
 
-	// uplight the entire screen to crutch up not having better blending range
-	RB_STD_LightScale();
+		drawSurfs = (drawSurf_t **)&backEnd.viewDef->drawSurfs[0];
+		numDrawSurfs = backEnd.viewDef->numDrawSurfs;
 
-	// now draw any non-light dependent shading passes
-	int	processed = RB_STD_DrawShaderPasses( drawSurfs, numDrawSurfs );
 
-	// fob and blend lights
-	RB_STD_FogAllLights();
+		// clear the z buffer, set the projection matrix, etc
+		RB_BeginDrawingView();
 
-	// now draw any post-processing effects using _currentRender
-	if ( processed < numDrawSurfs ) {
-		RB_STD_DrawShaderPasses( drawSurfs+processed, numDrawSurfs-processed );
+		// decide how much overbrighting we are going to do
+		RB_DetermineLightScale();
+
+		// fill the depth buffer and clear color buffer to black except on
+		// subviews
+		RB_STD_FillDepthBuffer( drawSurfs, numDrawSurfs );
+
+		// main light renderer
+		switch( tr.backEndRenderer ) {
+		case BE_ARB2:
+			RB_ARB2_DrawInteractions();
+			break;
+		}
+
+		// disable stencil shadow test
+		qglStencilFunc( GL_ALWAYS, 128, 255 );
+
+		// uplight the entire screen to crutch up not having better blending range
+		RB_STD_LightScale();
+
+		// now draw any non-light dependent shading passes
+		int	processed = RB_STD_DrawShaderPasses( drawSurfs, numDrawSurfs );
+
+		// fob and blend lights
+		RB_STD_FogAllLights();
+
+		// now draw any post-processing effects using _currentRender
+		if ( processed < numDrawSurfs ) {
+			RB_STD_DrawShaderPasses( drawSurfs+processed, numDrawSurfs-processed );
+		}
+
+		RB_RenderDebugTools( drawSurfs, numDrawSurfs );
 	}
-
-	RB_RenderDebugTools( drawSurfs, numDrawSurfs );
+	
 
 }

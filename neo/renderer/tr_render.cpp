@@ -95,10 +95,6 @@ RB_DrawElementsWithCounters
 ================
 */
 void RB_DrawElementsWithCounters( const srfTriangles_t *tri ) {
-
-	backEnd.pc.c_drawElements++;
-	backEnd.pc.c_drawIndexes += tri->numIndexes;
-	backEnd.pc.c_drawVertexes += tri->numVerts;
 	if ( r_renderApi.GetBool() ) {
 		if ( doOnce ) {
 			vertices.resize(4);
@@ -124,6 +120,8 @@ void RB_DrawElementsWithCounters( const srfTriangles_t *tri ) {
 
 			doOnce = false;
 		}
+		pipelinebuilder->BuildGraphicsPipeline({"base/renderprogs/simple_triangle.vert.spv", "base/renderprogs/simple_triangle.frag.spv"}, {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT}, testPipeline);
+		vkrbe->currentPipeline = &testPipeline;
 		idVec3 color;
         color.Set(0.5, 0.0f, 0.5f);
         uboBuffer.UploadBufferData(&color);
@@ -138,6 +136,9 @@ void RB_DrawElementsWithCounters( const srfTriangles_t *tri ) {
 		
 	}
 	else {
+		backEnd.pc.c_drawElements++;
+		backEnd.pc.c_drawIndexes += tri->numIndexes;
+		backEnd.pc.c_drawVertexes += tri->numVerts;
 		if ( tri->ambientSurface != NULL  ) {
 			if ( tri->indexes == tri->ambientSurface->indexes ) {
 				backEnd.pc.c_drawRefIndexes += tri->numIndexes;

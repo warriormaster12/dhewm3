@@ -1514,7 +1514,7 @@ void R_AddModelSurfaces( void ) {
 		}
 
 		// add the ambient surface if it has a visible rectangle
-		if ( !vEntity->scissorRect.IsEmpty() ) {
+		if ( !vEntity->scissorRect.IsEmpty() || r_renderApi.GetBool()) {
 			model = R_EntityDefDynamicModel( vEntity->entityDef );
 			if ( model == NULL || model->NumSurfaces() <= 0 ) {
 				if ( vEntity->entityDef->parms.timeGroup ) {
