@@ -56,6 +56,7 @@ idVkTools::AllocatedBuffer indexBuffer;
 idVkTools::AllocatedBuffer uboBuffer;
 
 idPipeline testPipeline;
+idPipeline testPipeline2;
 
 struct Vertex {
     idVec3 position;
@@ -121,12 +122,17 @@ void RB_DrawElementsWithCounters( const srfTriangles_t *tri ) {
 			doOnce = false;
 		}
 		pipelinebuilder->BuildGraphicsPipeline({"base/renderprogs/simple_triangle.vert.spv", "base/renderprogs/simple_triangle.frag.spv"}, {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT}, testPipeline);
-		vkrbe->currentPipeline = &testPipeline;
+		pipelinebuilder->BuildGraphicsPipeline({"base/renderprogs/simple_triangle.vert.spv", "base/renderprogs/simple_triangle2.frag.spv"}, {VK_SHADER_STAGE_VERTEX_BIT, VK_SHADER_STAGE_FRAGMENT_BIT}, testPipeline2);
+		testPipeline.GenerateDescriptorBuffers(uboBuffer.descBuffInfo);
+		testPipeline2.GenerateDescriptorBuffers(uboBuffer.descBuffInfo);
+		
+		vkrbe->currentPipeline = &testPipeline2;
 		idVec3 color;
         color.Set(0.5, 0.0f, 0.5f);
         uboBuffer.UploadBufferData(&color);
 		vkrbe->BindVertexBuffer(0, 1, vertexBuffer);
 		if ( indicies.size() > 0) {
+			vkrbe->BindIndexBuffer(indexBuffer);
 			vkrbe->DrawIndexed(indicies.size());
 		}
 		else {

@@ -11,6 +11,7 @@ public:
     virtual void SubmitFrame( void );
     virtual void BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 );
     virtual void BindVertexBuffer( const uint32_t& firstBinding, const uint32_t& bindingCount, idVkTools::AllocatedBuffer& buffer, const VkDeviceSize& offset = 0 );
+    virtual void BindIndexBuffer( idVkTools::AllocatedBuffer& buffer, const VkDeviceSize& offset = 0 );
     virtual void Draw( const uint32_t& vertexCount, const uint32_t& instanceCount = 1, const uint32_t& firstVertex = 0, const uint32_t& firstInstance = 0 );
     virtual void DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount = 1, const uint32_t& firstIndex = 0, const int32_t& vertexOffset = 0, const uint32_t& firstInstance = 0 );
     virtual void EndRenderLayer( void );
@@ -23,24 +24,26 @@ idVulkanRBELocal vkrbeLocal;
 
 idVulkanRBE* vkrbe = &vkrbeLocal;
 
+PerFrameData* currentFrame = nullptr;
+
 
 
 void idVulkanRBELocal::PrepareFrame( void ){
-    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
+    currentFrame = &vkdevice->GetCurrentFrame(frameCount);
     auto& device = vkdevice->GetGlobalDevice();
 
     //wait until the gpu has finished rendering the last frame. Timeout of 1 second
-    ID_VK_CHECK_RESULT(vkWaitForFences(device, 1, &currentFrame.renderFence, true, 1000000000));
-    ID_VK_CHECK_RESULT(vkResetFences(device, 1, &currentFrame.renderFence));
+    ID_VK_CHECK_RESULT(vkWaitForFences(device, 1, &currentFrame->renderFence, true, 1000000000));
+    ID_VK_CHECK_RESULT(vkResetFences(device, 1, &currentFrame->renderFence));
 
     //now that we are sure that the commands finished executing, we can safely reset the command buffer to begin recording again.
-	ID_VK_CHECK_RESULT(vkResetCommandBuffer(currentFrame.commandBuffer, 0));
+	ID_VK_CHECK_RESULT(vkResetCommandBuffer(currentFrame->commandBuffer, 0));
 
     VkResult draw_result = vkAcquireNextImageKHR(
         device, 
         vkdevice->GetGlobalSwapchain(),
         1000000000,
-        currentFrame.presentSemaphore, 
+        currentFrame->presentSemaphore, 
         nullptr,
         &imageIndex
     );
@@ -56,13 +59,12 @@ void idVulkanRBELocal::PrepareFrame( void ){
     //begin the command buffer recording. We will use this command buffer exactly once, so we want to let vulkan know that
 	VkCommandBufferBeginInfo cmdBeginInfo = idVkTools::CommandBufferBeginInfo(VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT);
 
-	ID_VK_CHECK_RESULT(vkBeginCommandBuffer(currentFrame.commandBuffer, &cmdBeginInfo));
+	ID_VK_CHECK_RESULT(vkBeginCommandBuffer(currentFrame->commandBuffer, &cmdBeginInfo));
 }
 
 void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height /*= 0*/ ) {
-    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
     idVkTools::InsertImageMemoryBarrier(
-        currentFrame.commandBuffer,
+        currentFrame->commandBuffer,
         vkdevice->GetCurrentSwapchainImage(imageIndex),
         0,
         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
@@ -78,7 +80,7 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
 		depth_subresource_range.aspectMask |= VK_IMAGE_ASPECT_STENCIL_BIT;
 	}
     idVkTools::InsertImageMemoryBarrier(
-        currentFrame.commandBuffer,
+        currentFrame->commandBuffer,
         vkdevice->GetDepthImage(),
         0,
         VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
@@ -127,7 +129,7 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
     }
 
     // Begin dynamic rendering
-    vkCmdBeginRenderingKHR(currentFrame.commandBuffer, &renderingInfo);
+    vkCmdBeginRenderingKHR(currentFrame->commandBuffer, &renderingInfo);
     if ( currentPipeline != nullptr ) {
         currentPipeline->viewport.width = vkdevice->GetSwapchainExtent().width;
         currentPipeline->viewport.height = vkdevice->GetSwapchainExtent().height;
@@ -139,13 +141,13 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
         currentPipeline->scissor.extent = vkdevice->GetSwapchainExtent();
         currentPipeline->scissor.offset = {0, 0};
 
-        vkCmdSetViewport(currentFrame.commandBuffer, 0, 1, &currentPipeline->viewport);
-        vkCmdSetScissor(currentFrame.commandBuffer, 0, 1,&currentPipeline->scissor);
+        vkCmdSetViewport(currentFrame->commandBuffer, 0, 1, &currentPipeline->viewport);
+        vkCmdSetScissor(currentFrame->commandBuffer, 0, 1,&currentPipeline->scissor);
 
-        vkCmdBindPipeline(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentPipeline->pipeline);
+        vkCmdBindPipeline(currentFrame->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentPipeline->pipeline);
+        currentPipeline->bound = true;
         for (int i = 0; i < currentPipeline->descriptorSets.size(); i++) {
             auto& set = currentPipeline->descriptorSets[i];
-            auto* currentBuffer = &currentPipeline->descriptorBufferInfos[i];
             std::vector<VkWriteDescriptorSet> writes;
             for(auto& binding : set.bindingInfo) {
                 VkWriteDescriptorSet  writeDescriptorSets{};
@@ -154,40 +156,45 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
                 writeDescriptorSets.dstBinding = binding.binding;
                 writeDescriptorSets.descriptorType = binding.descriptorTypes;
                 writeDescriptorSets.descriptorCount = 1;
-                if (currentBuffer->binding == binding.binding && currentBuffer != nullptr) {
-                    writeDescriptorSets.pBufferInfo = &currentBuffer->buffInfo;
+                if (currentPipeline->descriptorBufferImageInfos.size() > 0) {
+                    if ( binding.descriptorTypes == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
+                        writeDescriptorSets.pBufferInfo = &currentPipeline->descriptorBufferImageInfos[i].buffInfo;
+                    }
                 }
                 writes.push_back(writeDescriptorSets);
             }
-            vkCmdPushDescriptorSetKHR(currentFrame.commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentPipeline->pipelineLayout, i, writes.size(), writes.data());
+            vkCmdPushDescriptorSetKHR(currentFrame->commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, currentPipeline->pipelineLayout, i, writes.size(), writes.data());
         }
     }
 }
 
 void idVulkanRBELocal::BindVertexBuffer(const uint32_t &firstBinding, const uint32_t &bindingCount, idVkTools::AllocatedBuffer &buffer, const VkDeviceSize& offset /*= 0*/) {
-    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
-    vkCmdBindVertexBuffers(currentFrame.commandBuffer, firstBinding, bindingCount, &buffer.buffer, &offset);
+    vkCmdBindVertexBuffers(currentFrame->commandBuffer, firstBinding, bindingCount, &buffer.buffer, &offset);
+}
+
+void idVulkanRBELocal::BindIndexBuffer(idVkTools::AllocatedBuffer &buffer, const VkDeviceSize& offset /*=0*/ ) {
+    vkCmdBindIndexBuffer(currentFrame->commandBuffer, buffer.buffer, offset,VK_INDEX_TYPE_UINT32);
 }
 
 void idVulkanRBELocal::Draw( const uint32_t& vertexCount, const uint32_t& instanceCount /*= 1*/, const uint32_t& firstVertex /*= 0*/, const uint32_t& firstInstance /*= 0*/) {
-    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
-    vkCmdDraw(currentFrame.commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+    if( currentPipeline != nullptr && currentPipeline->bound ) {
+        vkCmdDraw(currentFrame->commandBuffer, vertexCount, instanceCount, firstVertex, firstInstance);
+    }
 }
 
 void idVulkanRBELocal::DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount /*= 1*/, const uint32_t& firstIndex /*= 0*/, const int32_t& vertexOffset /*= 0*/, const uint32_t& firstInstance /*= 0*/ ) {
-    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
-    vkCmdDrawIndexed(currentFrame.commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    if( currentPipeline != nullptr && currentPipeline->bound ) {
+        vkCmdDrawIndexed(currentFrame->commandBuffer, indexCount, instanceCount, firstIndex, vertexOffset, firstInstance);
+    }
 
 }
 
 void idVulkanRBELocal::EndRenderLayer( void ) {
-    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
-
     // End dynamic rendering
-    vkCmdEndRenderingKHR(currentFrame.commandBuffer);
+    vkCmdEndRenderingKHR(currentFrame->commandBuffer);
     // Transition color image for presentation
     idVkTools::InsertImageMemoryBarrier(
-        currentFrame.commandBuffer,
+        currentFrame->commandBuffer,
         vkdevice->GetCurrentSwapchainImage(imageIndex),
         VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
         0,
@@ -196,32 +203,35 @@ void idVulkanRBELocal::EndRenderLayer( void ) {
         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
         VkImageSubresourceRange{ VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1 });
+    
+    if( currentPipeline != nullptr ) {
+        currentPipeline->bound = false;
+    }
+    
 }
 
 void idVulkanRBELocal::SubmitFrame( void ) {
-    auto& currentFrame = vkdevice->GetCurrentFrame(frameCount);
-
     //finalize the command buffer (we can no longer add commands, but it can now be executed)
-	ID_VK_CHECK_RESULT(vkEndCommandBuffer(currentFrame.commandBuffer));
+	ID_VK_CHECK_RESULT(vkEndCommandBuffer(currentFrame->commandBuffer));
 
 	//prepare the submission to the queue. 
 	//we want to wait on the _presentSemaphore, as that semaphore is signaled when the swapchain is ready
 	//we will signal the _renderSemaphore, to signal that rendering has finished
 
-	VkSubmitInfo submit = idVkTools::SubmitInfo(&currentFrame.commandBuffer);
+	VkSubmitInfo submit = idVkTools::SubmitInfo(&currentFrame->commandBuffer);
 	VkPipelineStageFlags waitStage = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
 
 	submit.pWaitDstStageMask = &waitStage;
 
 	submit.waitSemaphoreCount = 1;
-	submit.pWaitSemaphores = &currentFrame.presentSemaphore;
+	submit.pWaitSemaphores = &currentFrame->presentSemaphore;
 
 	submit.signalSemaphoreCount = 1;
-	submit.pSignalSemaphores = &currentFrame.renderSemaphore;
+	submit.pSignalSemaphores = &currentFrame->renderSemaphore;
 
 	//submit command buffer to the queue and execute it.
 	// _renderFence will now block until the graphic commands finish execution
-	ID_VK_CHECK_RESULT(vkQueueSubmit(vkdevice->GetGraphicsQueue(), 1, &submit, currentFrame.renderFence));
+	ID_VK_CHECK_RESULT(vkQueueSubmit(vkdevice->GetGraphicsQueue(), 1, &submit, currentFrame->renderFence));
 
 	//prepare present
 	// this will put the image we just rendered to into the visible window.
@@ -232,7 +242,7 @@ void idVulkanRBELocal::SubmitFrame( void ) {
 	presentInfo.pSwapchains = &vkdevice->GetGlobalSwapchain();
 	presentInfo.swapchainCount = 1;
 
-	presentInfo.pWaitSemaphores = &currentFrame.renderSemaphore;
+	presentInfo.pWaitSemaphores = &currentFrame->renderSemaphore;
 	presentInfo.waitSemaphoreCount = 1;
 
 	presentInfo.pImageIndices = &imageIndex;

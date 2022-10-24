@@ -688,10 +688,15 @@ void idRenderSystemLocal::EndFrame( int *frontEndMsec, int *backEndMsec ) {
 		if( !vkdevice->vkInitialized ) {
 			return;
 		}
-		vkrbe->EndRenderLayer();
-		// close any gui drawing
+
 		guiModel->EmitFullScreen();
 		guiModel->Clear();
+
+		R_IssueRenderCommands();
+		R_ToggleSmpFrame();
+
+		vkrbe->EndRenderLayer();
+		// close any gui drawing
 
 		// save out timing information
 		if ( frontEndMsec ) {
@@ -700,9 +705,6 @@ void idRenderSystemLocal::EndFrame( int *frontEndMsec, int *backEndMsec ) {
 		if ( backEndMsec ) {
 			*backEndMsec = backEnd.pc.msec;
 		}
-
-		R_IssueRenderCommands();
-		R_ToggleSmpFrame();
 
 		vkrbe->SubmitFrame();
 

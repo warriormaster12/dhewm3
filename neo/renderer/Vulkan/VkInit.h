@@ -46,6 +46,7 @@ struct idPipeline {
 	VkRect2D scissor;
 	VkPipelineLayout pipelineLayout;
     bool depthEnabled;
+    bool bound = false;
     struct DescriptorInfo {
         struct BindingInfo {
             VkShaderStageFlags shaderStageFlags;
@@ -55,17 +56,23 @@ struct idPipeline {
         
         std::vector<BindingInfo> bindingInfo;
     };
-    struct DescriptorBufferInfo {
-        uint32_t binding = 0;
+    struct DescriptorBufferImageInfo {
         VkDescriptorBufferInfo buffInfo = {};
-    };
-    struct DescriptorImageInfo {
-        uint32_t binding = 0;
         VkDescriptorImageInfo imageInfo = {};
     };
     std::vector<DescriptorInfo> descriptorSets;
-    std::vector<DescriptorBufferInfo> descriptorBufferInfos;
-    std::vector<DescriptorBufferInfo> descriptorImageInfos;
+    std::vector<DescriptorBufferImageInfo> descriptorBufferImageInfos;
+
+    void GenerateDescriptorBuffers( VkDescriptorBufferInfo& buffInfo ) {
+        DescriptorBufferImageInfo info = {};
+        info.buffInfo = buffInfo;
+        descriptorBufferImageInfos.push_back(info);
+    }
+    void GenerateDescriptorImages( VkDescriptorImageInfo& imageInfo ) {
+        DescriptorBufferImageInfo info = {};
+        info.imageInfo = imageInfo;
+        descriptorBufferImageInfos.push_back(info);
+    }
     void DestroyPipeline();
 };
 
@@ -108,6 +115,7 @@ public:
     //framebuffer and renderpass replacement
     virtual void        BeginRenderLayer( uint32_t width = 0, uint32_t height = 0 ) = 0;
     virtual void        BindVertexBuffer( const uint32_t& firstBinding, const uint32_t& bindingCount, idVkTools::AllocatedBuffer& buffer, const VkDeviceSize& offset = 0 ) = 0;
+    virtual void        BindIndexBuffer( idVkTools::AllocatedBuffer& buffer, const VkDeviceSize& offset = 0 ) = 0;
     virtual void        Draw( const uint32_t& vertexCount, const uint32_t& instanceCount = 1, const uint32_t& firstVertex = 0, const uint32_t& firstInstance = 0 ) = 0;
     virtual void        DrawIndexed( const uint32_t& indexCount, const uint32_t& instanceCount = 1, const uint32_t& firstIndex = 0, const int32_t& vertexOffset = 0, const uint32_t& firstInstance = 0 ) = 0;
     virtual void        EndRenderLayer( void ) = 0; 
