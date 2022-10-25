@@ -26,6 +26,7 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
+#include "renderer/Vulkan/VkInit.h"
 #include "sys/platform.h"
 #include "framework/Common.h"
 #include "renderer/tr_local.h"

@@ -126,7 +126,7 @@ void RB_DrawElementsWithCounters( const srfTriangles_t *tri ) {
 		testPipeline.GenerateDescriptorBuffers(uboBuffer.descBuffInfo);
 		testPipeline2.GenerateDescriptorBuffers(uboBuffer.descBuffInfo);
 		
-		vkrbe->currentPipeline = &testPipeline2;
+		vkrbe->currentPipeline = &testPipeline;
 		idVec3 color;
         color.Set(0.5, 0.0f, 0.5f);
         uboBuffer.UploadBufferData(&color);
