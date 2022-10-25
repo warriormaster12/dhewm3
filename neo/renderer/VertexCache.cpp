@@ -32,6 +32,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "renderer/tr_local.h"
 
 #include "renderer/VertexCache.h"
+#include <cstdio>
 
 static const int	FRAME_MEMORY_BYTES = 0x200000;
 static const int	EXPAND_HEADERS = 1024;
@@ -161,12 +162,17 @@ void idVertexCache::Init() {
 	virtualMemory = false;
 
 	// use ARB_vertex_buffer_object unless explicitly disabled
-	if( r_useVertexBuffers.GetInteger() && glConfig.ARBVertexBufferObjectAvailable ) {
-		common->Printf( "using ARB_vertex_buffer_object memory\n" );
-	} else {
-		virtualMemory = true;
-		r_useIndexBuffers.SetBool( false );
-		common->Printf( "WARNING: vertex array range in virtual memory (SLOW)\n" );
+	if( r_renderApi.GetBool() ){
+		common->Printf("using Vulkan vertex and index buffers\n");	
+	}
+	else {
+		if( r_useVertexBuffers.GetInteger() && glConfig.ARBVertexBufferObjectAvailable ) {
+			common->Printf( "using ARB_vertex_buffer_object memory\n" );
+		} else {
+			virtualMemory = true;
+			r_useIndexBuffers.SetBool( false );
+			common->Printf( "WARNING: vertex array range in virtual memory (SLOW)\n" );
+		}
 	}
 
 	// initialize the cache memory blocks
@@ -244,12 +250,14 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 			block->prev = &freeStaticHeaders;
 			block->next->prev = block;
 			block->prev->next = block;
-
-			if( !virtualMemory ) {
-				qglGenBuffersARB( 1, & block->vbo );
+			if( !r_renderApi.GetBool() ) {
+				if( !virtualMemory) {
+					qglGenBuffersARB( 1, & block->vbo );
+				}
 			}
 		}
 	}
+
 
 	// move it from the freeStaticHeaders list to the staticHeaders list
 	block = freeStaticHeaders.next;
@@ -282,21 +290,31 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 	block->indexBuffer = indexBuffer;
 
 	// copy the data
-	if ( block->vbo ) {
-		if ( indexBuffer ) {
-			qglBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, block->vbo );
-			qglBufferDataARB( GL_ELEMENT_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STATIC_DRAW_ARB );
-		} else {
-			qglBindBufferARB( GL_ARRAY_BUFFER_ARB, block->vbo );
-			if ( allocatingTempBuffer ) {
-				qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STREAM_DRAW_ARB );
-			} else {
-				qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STATIC_DRAW_ARB );
-			}
+	if ( r_renderApi.GetBool() ){
+		if( indexBuffer ) {
+			block->vkIndexBuffer.AllocateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, size, 1);
+			block->vkIndexBuffer.UploadBufferData(data);
 		}
-	} else {
-		block->virtMem = Mem_Alloc( size );
-		SIMDProcessor->Memcpy( block->virtMem, data, size );
+		block->vkVertexBuffer.AllocateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, size, 1);
+		block->vkVertexBuffer.UploadBufferData(data);
+	}
+	else {
+		if ( block->vbo ) {
+			if ( indexBuffer ) {
+				qglBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, block->vbo );
+				qglBufferDataARB( GL_ELEMENT_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STATIC_DRAW_ARB );
+			} else {
+				qglBindBufferARB( GL_ARRAY_BUFFER_ARB, block->vbo );
+				if ( allocatingTempBuffer ) {
+					qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STREAM_DRAW_ARB );
+				} else {
+					qglBufferDataARB( GL_ARRAY_BUFFER_ARB, (GLsizeiptrARB)size, data, GL_STATIC_DRAW_ARB );
+				}
+			}
+		} else {
+			block->virtMem = Mem_Alloc( size );
+			SIMDProcessor->Memcpy( block->virtMem, data, size );
+		}
 	}
 }
 
@@ -464,38 +482,40 @@ void idVertexCache::EndFrame() {
 
 	}
 #endif
+	if(!r_renderApi.GetBool()) {
+		if( !virtualMemory ) {
+			// unbind vertex buffers so normal virtual memory will be used in case
+			// r_useVertexBuffers / r_useIndexBuffers
+			qglBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
+			qglBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
+		}
 
-	if( !virtualMemory ) {
-		// unbind vertex buffers so normal virtual memory will be used in case
-		// r_useVertexBuffers / r_useIndexBuffers
-		qglBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
-		qglBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
+
+		currentFrame = tr.frameCount;
+		listNum = currentFrame % NUM_VERTEX_FRAMES;
+		staticAllocThisFrame = 0;
+		staticCountThisFrame = 0;
+		dynamicAllocThisFrame = 0;
+		dynamicCountThisFrame = 0;
+		tempOverflow = false;
+
+		// free all the deferred free headers
+		while( deferredFreeList.next != &deferredFreeList ) {
+			ActuallyFree( deferredFreeList.next );
+		}
+
+		// free all the frame temp headers
+		vertCache_t	*block = dynamicHeaders.next;
+		if ( block != &dynamicHeaders ) {
+			block->prev = &freeDynamicHeaders;
+			dynamicHeaders.prev->next = freeDynamicHeaders.next;
+			freeDynamicHeaders.next->prev = dynamicHeaders.prev;
+			freeDynamicHeaders.next = block;
+
+			dynamicHeaders.next = dynamicHeaders.prev = &dynamicHeaders;
+		}
 	}
-
-
-	currentFrame = tr.frameCount;
-	listNum = currentFrame % NUM_VERTEX_FRAMES;
-	staticAllocThisFrame = 0;
-	staticCountThisFrame = 0;
-	dynamicAllocThisFrame = 0;
-	dynamicCountThisFrame = 0;
-	tempOverflow = false;
-
-	// free all the deferred free headers
-	while( deferredFreeList.next != &deferredFreeList ) {
-		ActuallyFree( deferredFreeList.next );
-	}
-
-	// free all the frame temp headers
-	vertCache_t	*block = dynamicHeaders.next;
-	if ( block != &dynamicHeaders ) {
-		block->prev = &freeDynamicHeaders;
-		dynamicHeaders.prev->next = freeDynamicHeaders.next;
-		freeDynamicHeaders.next->prev = dynamicHeaders.prev;
-		freeDynamicHeaders.next = block;
-
-		dynamicHeaders.next = dynamicHeaders.prev = &dynamicHeaders;
-	}
+	
 }
 
 /*

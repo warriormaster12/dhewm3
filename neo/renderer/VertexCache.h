@@ -28,6 +28,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "framework/CVarSystem.h"
 #include "renderer/qgl.h"
+#include "renderer/Vulkan/VkTools.h"
 
 // vertex cache calls should only be made by the front end
 
@@ -44,6 +45,9 @@ typedef struct vertCache_s {
 	GLuint			vbo;
 	void			*virtMem;			// only one of vbo / virtMem will be set
 	bool			indexBuffer;		// holds indexes instead of vertexes
+
+	idVkTools::AllocatedBuffer vkVertexBuffer; //Vulkan equivalent to vbo object
+	idVkTools::AllocatedBuffer vkIndexBuffer; //Vulkan equivalent index buffer
 
 	intptr_t		offset;
 	int				size;				// may be larger than the amount asked for, due
