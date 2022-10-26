@@ -16,9 +16,8 @@ void main() {
     gl_Position = vec4(vPosition,1.0);
     outColor = vColor + triangleData.color;
 }
-#endif
 
-#ifdef STAGE_FRAGMENT
+#elif defined(STAGE_FRAGMENT)
 #pragma shader_stage(fragment)
 
 layout (location = 0) in vec3 inColor;
