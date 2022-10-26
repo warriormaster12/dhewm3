@@ -9,7 +9,7 @@
 #include <SDL_vulkan.h>
 
 #include <vector>
-
+#include "renderer/VertexCache.h"
 
 
 
@@ -390,6 +390,8 @@ void idVulkanDeviceLocal::Shutdown( void ) {
     {
         vkDestroyImageView(device,  swapchainImageViews[i], nullptr);
     }
+
+    vertexCache.Shutdown();
 
     vkDestroySwapchainKHR(device,swapchain, nullptr);
 

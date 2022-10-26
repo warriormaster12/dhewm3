@@ -1733,19 +1733,20 @@ RB_STD_DrawView
 =============
 */
 void	RB_STD_DrawView( void ) {
-	if ( r_renderApi.GetBool() ) {
-		RB_DrawElementsWithCounters(nullptr);
+	drawSurf_t	 **drawSurfs;
+	int			numDrawSurfs;
+
+	backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
+
+	drawSurfs = (drawSurf_t **)&backEnd.viewDef->drawSurfs[0];
+	numDrawSurfs = backEnd.viewDef->numDrawSurfs;
+
+	if ( r_renderApi.GetBool() )
+	{
+		const srfTriangles_t* tri = drawSurfs[0]->geo;
+		RB_DrawElementsWithCounters(tri);
 	}
 	else {
-		drawSurf_t	 **drawSurfs;
-		int			numDrawSurfs;
-
-		backEnd.depthFunc = GLS_DEPTHFUNC_EQUAL;
-
-		drawSurfs = (drawSurf_t **)&backEnd.viewDef->drawSurfs[0];
-		numDrawSurfs = backEnd.viewDef->numDrawSurfs;
-
-
 		// clear the z buffer, set the projection matrix, etc
 		RB_BeginDrawingView();
 
@@ -1782,6 +1783,4 @@ void	RB_STD_DrawView( void ) {
 
 		RB_RenderDebugTools( drawSurfs, numDrawSurfs );
 	}
-	
-
 }

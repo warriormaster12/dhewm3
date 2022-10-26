@@ -2259,7 +2259,9 @@ void idRenderSystemLocal::Shutdown( void ) {
 	R_ShutdownFrameData();
 
 	// free the vertex cache, which should have nothing allocated now
-	vertexCache.Shutdown();
+	if ( !r_renderApi.GetBool() ){
+		vertexCache.Shutdown();
+	}
 
 	R_ShutdownTriSurfData();
 
