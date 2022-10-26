@@ -1,6 +1,7 @@
 #include "VkTools.h"
 #include "VkInit.h"
 #include "framework/Common.h"
+#include <vulkan/vulkan_core.h>
 
 
 #define ID_VK_ERROR_STRING( x ) case static_cast< int >( x ): return #x
@@ -169,33 +170,35 @@ namespace idVkTools {
 
 
     void AllocatedBuffer::AllocateBuffer( const VkBufferUsageFlags& usage, VmaMemoryUsage memoryUsage,const uint32_t& dataSize, const uint32_t& typeSize  ) {
-        if(dataSize > 0) {
-            //allocate vertex buffer
-            VkBufferCreateInfo bufferInfo = {};
-            bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-            //this is the total size, in bytes, of the buffer we are allocating
-            bufferSize = dataSize * typeSize;
-            bufferInfo.size = bufferSize;
-            //this buffer is going to be used as a Vertex Buffer
-            bufferInfo.usage = usage;
+        if ( buffer == VK_NULL_HANDLE ){
+            if(dataSize > 0) {
+                //allocate vertex buffer
+                VkBufferCreateInfo bufferInfo = {};
+                bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+                //this is the total size, in bytes, of the buffer we are allocating
+                bufferSize = dataSize * typeSize;
+                bufferInfo.size = bufferSize;
+                //this buffer is going to be used as a Vertex Buffer
+                bufferInfo.usage = usage;
 
-            //let the VMA library know that this data should be writeable by CPU, but also readable by GPU
-            VmaAllocationCreateInfo vmaallocInfo = {};
-            vmaallocInfo.usage = memoryUsage;
+                //let the VMA library know that this data should be writeable by CPU, but also readable by GPU
+                VmaAllocationCreateInfo vmaallocInfo = {};
+                vmaallocInfo.usage = memoryUsage;
 
-            //allocate the buffer
-            ID_VK_CHECK_RESULT(vmaCreateBuffer(vkdevice->GetGlobalMemoryAllocator(), &bufferInfo, &vmaallocInfo,
-                &buffer,
-                &allocation,
-                nullptr));
-            
-            if(usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT || usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
-                descBuffInfo.buffer = buffer;
-                descBuffInfo.range = bufferSize;
+                //allocate the buffer
+                ID_VK_CHECK_RESULT(vmaCreateBuffer(vkdevice->GetGlobalMemoryAllocator(), &bufferInfo, &vmaallocInfo,
+                    &buffer,
+                    &allocation,
+                    nullptr));
+                
+                if(usage == VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT || usage == VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) {
+                    descBuffInfo.buffer = buffer;
+                    descBuffInfo.range = bufferSize;
+                }
             }
-        }
-        else{
-            common->Warning("couldn't allocate a buffer due to data size = %d", dataSize);
+            else{
+                common->Warning("couldn't allocate a buffer due to data size = %d", dataSize);
+            }
         }
     }
 
@@ -217,6 +220,8 @@ namespace idVkTools {
     void AllocatedBuffer::DestroyBuffer( void ) {
         if (buffer != VK_NULL_HANDLE) {
             vmaDestroyBuffer(vkdevice->GetGlobalMemoryAllocator(), buffer, allocation);
+            //just in case if we accidentaly try to delete this buffer twice
+            buffer = VK_NULL_HANDLE;
         }
     }
 }

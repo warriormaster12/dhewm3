@@ -29,6 +29,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "framework/CVarSystem.h"
 #include "renderer/qgl.h"
 #include "renderer/Vulkan/VkTools.h"
+#include <cstddef>
 
 // vertex cache calls should only be made by the front end
 

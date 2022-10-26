@@ -157,7 +157,7 @@ void idVulkanRBELocal::BeginRenderLayer( uint32_t width /*= 0*/, uint32_t height
                 writeDescriptorSets.descriptorType = binding.descriptorTypes;
                 writeDescriptorSets.descriptorCount = 1;
                 if (currentPipeline->descriptorBufferImageInfos.size() > 0) {
-                    if ( binding.descriptorTypes == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
+                    if ( binding.descriptorTypes == VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER || binding.descriptorTypes == VK_DESCRIPTOR_TYPE_STORAGE_BUFFER) {
                         writeDescriptorSets.pBufferInfo = &currentPipeline->descriptorBufferImageInfos[i].buffInfo;
                     }
                 }

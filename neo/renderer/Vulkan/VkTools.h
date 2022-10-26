@@ -21,15 +21,15 @@ namespace idVkTools {
 		VmaAllocation allocation;
 		VkImageView defaultView = VK_NULL_HANDLE;
         VkFormat imageFormat;
-		int mipLevels;
+		int mipLevels = 0;
 
 		void DestroyImage( void );
 	};
 
 	class AllocatedBuffer {
 	private:
-		VmaAllocation allocation;
-		uint32_t bufferSize;
+		VmaAllocation allocation = VK_NULL_HANDLE;
+		uint32_t bufferSize = 0;
 	public:
 		VkBuffer buffer = VK_NULL_HANDLE;
 		VkDescriptorBufferInfo descBuffInfo = {};

@@ -67,6 +67,8 @@ void idVertexCache::ActuallyFree( vertCache_t *block ) {
 		block->user = NULL;
 	}
 
+
+
 	// temp blocks are in a shared space that won't be freed
 	if ( block->tag != TAG_TEMP ) {
 		staticAllocTotal -= block->size;
@@ -367,6 +369,13 @@ void idVertexCache::Free( vertCache_t *block ) {
 	// this block still can't be purged until the frame count has expired,
 	// but it won't need to clear a user pointer when it is
 	block->user = NULL;
+	block->vkIndexBuffer.DestroyBuffer();
+	block->vkVertexBuffer.DestroyBuffer();
+
+	for ( int i = 0 ; i < NUM_VERTEX_FRAMES ; i++ ) {
+		tempBuffers[i]->vkVertexBuffer.DestroyBuffer();
+		tempBuffers[i]->vkIndexBuffer.DestroyBuffer();
+	}
 
 	block->next->prev = block->prev;
 	block->prev->next = block->next;
@@ -375,6 +384,7 @@ void idVertexCache::Free( vertCache_t *block ) {
 	block->prev = &deferredFreeList;
 	deferredFreeList.next->prev = block;
 	deferredFreeList.next = block;
+
 }
 
 /*
@@ -437,12 +447,16 @@ vertCache_t	*idVertexCache::AllocFrameTemp( void *data, int size ) {
 	// copy the data
 	block->virtMem = tempBuffers[listNum]->virtMem;
 	block->vbo = tempBuffers[listNum]->vbo;
+	block->vkVertexBuffer = tempBuffers[listNum]->vkVertexBuffer;
+	block->vkIndexBuffer = tempBuffers[listNum]->vkIndexBuffer;
 
-	if ( block->vbo ) {
-		qglBindBufferARB( GL_ARRAY_BUFFER_ARB, block->vbo );
-		qglBufferSubDataARB( GL_ARRAY_BUFFER_ARB, block->offset, (GLsizeiptrARB)size, data );
-	} else {
-		SIMDProcessor->Memcpy( (byte *)block->virtMem + block->offset, data, size );
+	if ( !r_renderApi.GetBool() ){
+		if ( block->vbo ) {
+			qglBindBufferARB( GL_ARRAY_BUFFER_ARB, block->vbo );
+			qglBufferSubDataARB( GL_ARRAY_BUFFER_ARB, block->offset, (GLsizeiptrARB)size, data );
+		} else {
+			SIMDProcessor->Memcpy( (byte *)block->virtMem + block->offset, data, size );
+		}
 	}
 
 	return block;
@@ -489,31 +503,31 @@ void idVertexCache::EndFrame() {
 			qglBindBufferARB( GL_ARRAY_BUFFER_ARB, 0 );
 			qglBindBufferARB( GL_ELEMENT_ARRAY_BUFFER_ARB, 0 );
 		}
+	}
 
 
-		currentFrame = tr.frameCount;
-		listNum = currentFrame % NUM_VERTEX_FRAMES;
-		staticAllocThisFrame = 0;
-		staticCountThisFrame = 0;
-		dynamicAllocThisFrame = 0;
-		dynamicCountThisFrame = 0;
-		tempOverflow = false;
+	currentFrame = tr.frameCount;
+	listNum = currentFrame % NUM_VERTEX_FRAMES;
+	staticAllocThisFrame = 0;
+	staticCountThisFrame = 0;
+	dynamicAllocThisFrame = 0;
+	dynamicCountThisFrame = 0;
+	tempOverflow = false;
 
-		// free all the deferred free headers
-		while( deferredFreeList.next != &deferredFreeList ) {
-			ActuallyFree( deferredFreeList.next );
-		}
+	// free all the deferred free headers
+	while( deferredFreeList.next != &deferredFreeList ) {
+		ActuallyFree( deferredFreeList.next );
+	}
 
-		// free all the frame temp headers
-		vertCache_t	*block = dynamicHeaders.next;
-		if ( block != &dynamicHeaders ) {
-			block->prev = &freeDynamicHeaders;
-			dynamicHeaders.prev->next = freeDynamicHeaders.next;
-			freeDynamicHeaders.next->prev = dynamicHeaders.prev;
-			freeDynamicHeaders.next = block;
+	// free all the frame temp headers
+	vertCache_t	*block = dynamicHeaders.next;
+	if ( block != &dynamicHeaders ) {
+		block->prev = &freeDynamicHeaders;
+		dynamicHeaders.prev->next = freeDynamicHeaders.next;
+		freeDynamicHeaders.next->prev = dynamicHeaders.prev;
+		freeDynamicHeaders.next = block;
 
-			dynamicHeaders.next = dynamicHeaders.prev = &dynamicHeaders;
-		}
+		dynamicHeaders.next = dynamicHeaders.prev = &dynamicHeaders;
 	}
 	
 }
