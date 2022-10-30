@@ -124,14 +124,13 @@ void RB_DrawElementsWithCounters( const srfTriangles_t *tri ) {
         color.Set(0.5, 0.0f, 0.5f);
         uboBuffer.UploadBufferData(&color);
 		vkrbe->BindVertexBuffer(0, 1, tri->ambientCache->vkVertexBuffer);
-		// if ( tri->numIndexes > 0) {
-		// 	vkrbe->BindIndexBuffer(tri->indexCache->vkIndexBuffer);
-		// 	vkrbe->DrawIndexed(tri->numIndexes);
-		// }
-		// else {
-			
-		// }
-		vkrbe->Draw(tri->numVerts);
+		if ( tri->numIndexes > 0) {
+			vkrbe->BindIndexBuffer(tri->ambientCache->vkIndexBuffer);
+			vkrbe->DrawIndexed(tri->numIndexes);
+		}
+		else {
+			vkrbe->Draw(tri->numVerts);	
+		}
 		
 	}
 	else {

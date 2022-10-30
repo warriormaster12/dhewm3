@@ -26,6 +26,8 @@ If you have questions concerning this license or the applicable additional terms
 ===========================================================================
 */
 
+#include "idlib/geometry/DrawVert.h"
+#include "idlib/math/Vector.h"
 #include "renderer/Vulkan/VkInit.h"
 #include "sys/platform.h"
 #include "framework/Common.h"
@@ -33,6 +35,7 @@ If you have questions concerning this license or the applicable additional terms
 
 #include "renderer/VertexCache.h"
 #include <cstdio>
+#include <vector>
 
 static const int	FRAME_MEMORY_BYTES = 0x200000;
 static const int	EXPAND_HEADERS = 1024;
@@ -319,6 +322,77 @@ void idVertexCache::Alloc( void *data, int size, vertCache_t **buffer, bool inde
 		}
 	}
 }
+
+void idVertexCache::Alloc( void *vertexData, int vbytes, void *indexData, int ibytes,vertCache_t **buffer ) {
+	vertCache_t	*block;
+
+
+	if ( vbytes <= 0 ) {
+		common->Error( "idVertexCache::Alloc: size = %i\n", vbytes );
+	}
+
+	// if we can't find anything, it will be NULL
+	*buffer = NULL;
+
+	// if we don't have any remaining unused headers, allocate some more
+	if ( freeStaticHeaders.next == &freeStaticHeaders ) {
+
+		for ( int i = 0; i < EXPAND_HEADERS; i++ ) {
+			block = headerAllocator.Alloc();
+			block->next = freeStaticHeaders.next;
+			block->prev = &freeStaticHeaders;
+			block->next->prev = block;
+			block->prev->next = block;
+			if( !r_renderApi.GetBool() ) {
+				if( !virtualMemory) {
+					qglGenBuffersARB( 1, & block->vbo );
+				}
+			}
+		}
+	}
+
+
+	// move it from the freeStaticHeaders list to the staticHeaders list
+	block = freeStaticHeaders.next;
+	block->next->prev = block->prev;
+	block->prev->next = block->next;
+	block->next = staticHeaders.next;
+	block->prev = &staticHeaders;
+	block->next->prev = block;
+	block->prev->next = block;
+
+	block->size = vbytes;
+	block->offset = 0;
+	block->tag = TAG_USED;
+
+	// save data for debugging
+	staticAllocThisFrame += block->size;
+	staticCountThisFrame++;
+	staticCountTotal++;
+	staticAllocTotal += block->size;
+
+	// this will be set to zero when it is purged
+	block->user = buffer;
+	*buffer = block;
+
+	// allocation doesn't imply used-for-drawing, because at level
+	// load time lots of things may be created, but they aren't
+	// referenced by the GPU yet, and can be purged if needed.
+	block->frameUsed = currentFrame - NUM_VERTEX_FRAMES;
+
+	block->indexBuffer = true;
+
+	// copy the data
+	block->vkVertexBuffer.AllocateBuffer(VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, vbytes, 1);
+	block->vkVertexBuffer.UploadBufferData(vertexData);
+
+	if ( ibytes > 0 ) {
+		// copy the data
+		block->vkIndexBuffer.AllocateBuffer(VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VMA_MEMORY_USAGE_CPU_TO_GPU, ibytes, 1);
+		block->vkIndexBuffer.UploadBufferData(indexData);
+	}
+}
+
 
 /*
 ===========

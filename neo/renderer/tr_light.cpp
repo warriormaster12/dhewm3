@@ -34,6 +34,7 @@ If you have questions concerning this license or the applicable additional terms
 #include "ui/Window.h"
 
 #include "renderer/tr_local.h"
+#include <vector>
 
 static const float CHECK_BOUNDS_EPSILON = 1.0f;
 
@@ -60,8 +61,36 @@ bool R_CreateAmbientCache( srfTriangles_t *tri, bool needsLighting ) {
 	if ( needsLighting && !tri->tangentsCalculated ) {
 		R_DeriveTangents( tri );
 	}
-
-	vertexCache.Alloc( tri->verts, tri->numVerts * sizeof( tri->verts[0] ), &tri->ambientCache );
+	if ( r_renderApi.GetBool() ){
+		struct Vertex {
+			idVec3 vPosition;
+			idVec2 st;
+			idVec3 normal;
+			byte vColor[4];
+		};
+		std::vector<Vertex> vertices;
+		std::vector<uint32_t> indicies;
+		vertices.resize(tri->numVerts);
+		indicies.resize(tri->numIndexes);
+		for (int i= 0; i < vertices.size(); i++) {
+			Vertex vertex;
+			vertex.vPosition = tri->verts[i].xyz;
+			vertex.st = tri->verts[i].st;
+			vertex.normal = tri->verts[i].normal;
+			vertex.vColor[0] = 0;
+			vertex.vColor[1] = 0;
+			vertex.vColor[2] = 0;
+			vertex.vColor[3] = 0;
+			vertices[i] = vertex;
+		}
+		for(int i=0; i<indicies.size(); i++) {
+			indicies[i] = tri->indexes[i];
+		}
+		vertexCache.Alloc(vertices.data(), tri->numVerts * sizeof( Vertex ), indicies.data(), tri->numIndexes * sizeof( indicies[0] ), &tri->ambientCache);
+	}
+	else {
+		vertexCache.Alloc( tri->verts, tri->numVerts * sizeof( tri->verts[0] ), &tri->ambientCache );
+	}
 	if ( !tri->ambientCache ) {
 		return false;
 	}
@@ -125,7 +154,6 @@ bool R_CreateLightingCache( const idRenderEntityLocal *ent, const idRenderLightL
 	}
 
 #endif
-
 	vertexCache.Alloc( cache, size, &tri->lightingCache );
 	if ( !tri->lightingCache ) {
 		return false;
