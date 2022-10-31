@@ -64,27 +64,16 @@ bool R_CreateAmbientCache( srfTriangles_t *tri, bool needsLighting ) {
 	if ( r_renderApi.GetBool() ){
 		struct Vertex {
 			idVec3 vPosition;
-			idVec2 st;
-			idVec3 normal;
-			byte vColor[4];
 		};
 		std::vector<Vertex> vertices;
 		std::vector<uint32_t> indicies;
-		vertices.resize(tri->numVerts);
-		indicies.resize(tri->numIndexes);
-		for (int i= 0; i < vertices.size(); i++) {
+		for (int i= 0; i < tri->numVerts; i++) {
 			Vertex vertex;
 			vertex.vPosition = tri->verts[i].xyz;
-			vertex.st = tri->verts[i].st;
-			vertex.normal = tri->verts[i].normal;
-			vertex.vColor[0] = 0;
-			vertex.vColor[1] = 0;
-			vertex.vColor[2] = 0;
-			vertex.vColor[3] = 0;
-			vertices[i] = vertex;
+			vertices.push_back(vertex);
 		}
-		for(int i=0; i<indicies.size(); i++) {
-			indicies[i] = tri->indexes[i];
+		for(int i=0; i<tri->numIndexes; i++) {
+			indicies.push_back(tri->indexes[i]);
 		}
 		vertexCache.Alloc(vertices.data(), tri->numVerts * sizeof( Vertex ), indicies.data(), tri->numIndexes * sizeof( indicies[0] ), &tri->ambientCache);
 	}

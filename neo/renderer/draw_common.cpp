@@ -1742,9 +1742,11 @@ void	RB_STD_DrawView( void ) {
 	numDrawSurfs = backEnd.viewDef->numDrawSurfs;
 
 	if ( r_renderApi.GetBool() )
-	{
-		const srfTriangles_t* tri = drawSurfs[0]->geo;
-		RB_DrawElementsWithCounters(tri);
+	{	
+		for(int i = 0; i < numDrawSurfs; i++) {
+			const srfTriangles_t* tri = drawSurfs[i]->geo;
+			RB_DrawElementsWithCounters(tri);
+		}
 	}
 	else {
 		// clear the z buffer, set the projection matrix, etc
