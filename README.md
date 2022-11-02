@@ -1,5 +1,5 @@
 # Vulkan Port Instructions
-As of right now _dhewm3_ defaults to its original OpenGl renderer. To run the game with Vulkan you must either launch the game with an argument ```./dhewm3 +set r_renderApi 1``` or modify dhewm.cfg file. Copy "base" folder to the same directory as the executable, this is needed for shaders to be read properly. 
+As of right now _dhewm3_ defaults to its original OpenGl renderer. To run the game with Vulkan you must either launch the game once with an argument ```./dhewm3 +set r_renderApi 1``` or modify dhewm.cfg file. Copy "base" folder to the same directory as the executable, this is needed for shaders to be read properly. 
 
 # ABOUT
 
